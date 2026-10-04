@@ -126,9 +126,9 @@ export default function Footer() {
             <span className="hover:text-slate-300">
               Termos de Utilização
             </span>
-            <span className="hover:text-slate-300">
-              Entidade Certificada DGEG
-            </span>
+            <a href="/crm" className="text-slate-400 hover:text-blue-400 transition-colors flex items-center gap-1 font-semibold">
+              <span>Área Comercial (CRM)</span>
+            </a>
           </div>
         </div>
       </div>

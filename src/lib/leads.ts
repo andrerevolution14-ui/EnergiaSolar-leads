@@ -3,6 +3,8 @@ import { Resend } from "resend";
 import fs from "fs";
 import path from "path";
 
+export type LeadStatus = "nova" | "contactada" | "fechada";
+
 export interface LeadData {
   id?: string;
   name: string;
@@ -11,22 +13,35 @@ export interface LeadData {
   monthlyBill: string;
   plannedBudget?: string;
   timeline?: string;
-  mainGoal?: string;
-  hasBatteryInterest?: string;
   location?: string;
+  status?: LeadStatus;
+  notes?: string;
   estimatedSavingsAnnual?: number;
   ip?: string;
   userAgent?: string;
   createdAt?: string;
+  updatedAt?: string;
+}
+
+function getDb() {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl || databaseUrl.includes("user:password@host")) {
+    return null;
+  }
+  return neon(databaseUrl);
 }
 
 export async function saveLead(data: LeadData) {
   const leadId = `lead_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const createdAt = new Date().toISOString();
+  const status: LeadStatus = data.status || "nova";
   const enrichedLead: LeadData = {
     ...data,
     id: leadId,
+    status,
+    notes: data.notes || "",
     createdAt,
+    updatedAt: createdAt,
   };
 
   let dbSaved = false;
@@ -34,31 +49,30 @@ export async function saveLead(data: LeadData) {
   let errorDetails: string[] = [];
 
   // 1. Neon Database Storage
-  const databaseUrl = process.env.DATABASE_URL;
-  if (databaseUrl && !databaseUrl.includes("user:password@host")) {
+  const sql = getDb();
+  if (sql) {
     try {
-      const sql = neon(databaseUrl);
-      // Auto-create table if needed with extra qualification columns
       await sql`
         CREATE TABLE IF NOT EXISTS solar_leads (
           id VARCHAR(64) PRIMARY KEY,
           name VARCHAR(255) NOT NULL,
           phone VARCHAR(50) NOT NULL,
-          property_type VARCHAR(50) NOT NULL,
+          property_type VARCHAR(50) DEFAULT 'residencial',
           monthly_bill VARCHAR(50),
           planned_budget VARCHAR(80),
           timeline VARCHAR(80),
-          main_goal VARCHAR(120),
-          battery_interest VARCHAR(50),
           location VARCHAR(100),
+          status VARCHAR(30) DEFAULT 'nova',
+          notes TEXT DEFAULT '',
           estimated_savings_annual NUMERIC,
-          created_at TIMESTAMPTZ DEFAULT NOW()
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
         );
       `;
 
       await sql`
         INSERT INTO solar_leads (
-          id, name, phone, property_type, monthly_bill, planned_budget, timeline, main_goal, battery_interest, location, estimated_savings_annual, created_at
+          id, name, phone, property_type, monthly_bill, planned_budget, timeline, location, status, notes, estimated_savings_annual, created_at, updated_at
         ) VALUES (
           ${leadId},
           ${enrichedLead.name},
@@ -67,10 +81,11 @@ export async function saveLead(data: LeadData) {
           ${enrichedLead.monthlyBill},
           ${enrichedLead.plannedBudget || null},
           ${enrichedLead.timeline || null},
-          ${enrichedLead.mainGoal || null},
-          ${enrichedLead.hasBatteryInterest || null},
           ${enrichedLead.location || ""},
+          ${status},
+          ${enrichedLead.notes || ""},
           ${enrichedLead.estimatedSavingsAnnual || null},
+          ${createdAt},
           ${createdAt}
         );
       `;
@@ -81,28 +96,26 @@ export async function saveLead(data: LeadData) {
     }
   }
 
-  // Fallback to local storage if Neon is not set or failed
-  if (!dbSaved) {
-    try {
-      const dataDir = path.join(process.cwd(), "data");
-      if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true });
-      }
-      const leadsFile = path.join(dataDir, "leads.json");
-      let existingLeads: LeadData[] = [];
-      if (fs.existsSync(leadsFile)) {
-        try {
-          existingLeads = JSON.parse(fs.readFileSync(leadsFile, "utf-8"));
-        } catch {
-          existingLeads = [];
-        }
-      }
-      existingLeads.unshift(enrichedLead);
-      fs.writeFileSync(leadsFile, JSON.stringify(existingLeads, null, 2));
-      dbSaved = true;
-    } catch (fsErr: any) {
-      console.error("[Leads Local Fallback Error]", fsErr?.message || fsErr);
+  // Fallback to local storage
+  try {
+    const dataDir = path.join(process.cwd(), "data");
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
     }
+    const leadsFile = path.join(dataDir, "leads.json");
+    let existingLeads: LeadData[] = [];
+    if (fs.existsSync(leadsFile)) {
+      try {
+        existingLeads = JSON.parse(fs.readFileSync(leadsFile, "utf-8"));
+      } catch {
+        existingLeads = [];
+      }
+    }
+    existingLeads.unshift(enrichedLead);
+    fs.writeFileSync(leadsFile, JSON.stringify(existingLeads, null, 2));
+    if (!dbSaved) dbSaved = true;
+  } catch (fsErr: any) {
+    console.error("[Leads Local Fallback Error]", fsErr?.message || fsErr);
   }
 
   // 2. Resend Email Notification
@@ -117,7 +130,7 @@ export async function saveLead(data: LeadData) {
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
           <div style="background: linear-gradient(135deg, #0284c7 0%, #1e40af 100%); padding: 20px; border-radius: 8px; color: white; text-align: center; margin-bottom: 24px;">
             <h1 style="margin: 0; font-size: 22px; font-weight: 700;">☀️ Nova Lead de Energia Solar</h1>
-            <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.9;">Contacto verificado e pronto para avaliação imediata</p>
+            <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.9;">Contacto qualificado e pronto para fecho comercial</p>
           </div>
 
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
@@ -149,20 +162,10 @@ export async function saveLead(data: LeadData) {
               <td style="padding: 12px 0; color: #64748b; font-weight: 600;">Prazo de Instalação:</td>
               <td style="padding: 12px 0; color: #0f172a; font-weight: 600;">${enrichedLead.timeline}</td>
             </tr>` : ""}
-            ${enrichedLead.mainGoal ? `
-            <tr style="border-bottom: 1px solid #f1f5f9;">
-              <td style="padding: 12px 0; color: #64748b; font-weight: 600;">Objetivo Principal:</td>
-              <td style="padding: 12px 0; color: #0f172a; font-weight: 600;">${enrichedLead.mainGoal}</td>
-            </tr>` : ""}
             ${enrichedLead.location ? `
             <tr style="border-bottom: 1px solid #f1f5f9;">
-              <td style="padding: 12px 0; color: #64748b; font-weight: 600;">Localidade:</td>
+              <td style="padding: 12px 0; color: #64748b; font-weight: 600;">Concelho / Localidade:</td>
               <td style="padding: 12px 0; color: #0f172a;">${enrichedLead.location}</td>
-            </tr>` : ""}
-            ${enrichedLead.estimatedSavingsAnnual ? `
-            <tr style="border-bottom: 1px solid #f1f5f9;">
-              <td style="padding: 12px 0; color: #64748b; font-weight: 600;">Poupança Estimada / Ano:</td>
-              <td style="padding: 12px 0; color: #16a34a; font-weight: 700; font-size: 16px;">~${enrichedLead.estimatedSavingsAnnual}€ / ano</td>
             </tr>` : ""}
             <tr>
               <td style="padding: 12px 0; color: #64748b; font-weight: 600;">Data do Pedido:</td>
@@ -196,7 +199,151 @@ export async function saveLead(data: LeadData) {
     leadId,
     dbSaved,
     emailSent,
-    isLocalFallback: !databaseUrl,
+    isLocalFallback: !sql,
     warning: errorDetails.length > 0 ? errorDetails.join("; ") : undefined,
   };
+}
+
+export async function getAllLeads(statusFilter?: string, searchQuery?: string): Promise<LeadData[]> {
+  const sql = getDb();
+  if (sql) {
+    try {
+      let query = "SELECT * FROM solar_leads";
+      const conditions: string[] = [];
+
+      if (statusFilter && statusFilter !== "todas") {
+        conditions.push(`status = '${statusFilter.replace(/'/g, "''")}'`);
+      }
+      if (searchQuery && searchQuery.trim()) {
+        const clean = searchQuery.trim().replace(/'/g, "''");
+        conditions.push(`(name ILIKE '%${clean}%' OR phone ILIKE '%${clean}%' OR location ILIKE '%${clean}%')`);
+      }
+
+      if (conditions.length > 0) {
+        query += " WHERE " + conditions.join(" AND ");
+      }
+      query += " ORDER BY created_at DESC";
+
+      const rows: any[] = await sql.query(query);
+      return rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        phone: r.phone,
+        propertyType: r.property_type,
+        monthlyBill: r.monthly_bill,
+        plannedBudget: r.planned_budget,
+        timeline: r.timeline,
+        location: r.location,
+        status: (r.status as LeadStatus) || "nova",
+        notes: r.notes || "",
+        estimatedSavingsAnnual: r.estimated_savings_annual ? Number(r.estimated_savings_annual) : undefined,
+        createdAt: r.created_at ? new Date(r.created_at).toISOString() : undefined,
+        updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
+      }));
+    } catch (err) {
+      console.error("[getAllLeads DB Error]", err);
+    }
+  }
+
+  // Fallback to local data
+  try {
+    const dataDir = path.join(process.cwd(), "data");
+    const leadsFile = path.join(dataDir, "leads.json");
+    if (fs.existsSync(leadsFile)) {
+      let leads: LeadData[] = JSON.parse(fs.readFileSync(leadsFile, "utf-8"));
+      if (statusFilter && statusFilter !== "todas") {
+        leads = leads.filter((l) => (l.status || "nova") === statusFilter);
+      }
+      if (searchQuery && searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        leads = leads.filter(
+          (l) =>
+            l.name.toLowerCase().includes(q) ||
+            l.phone.toLowerCase().includes(q) ||
+            (l.location && l.location.toLowerCase().includes(q))
+        );
+      }
+      return leads;
+    }
+  } catch (fsErr) {
+    console.error("[getAllLeads Local Fallback Error]", fsErr);
+  }
+
+  return [];
+}
+
+export async function updateLeadStatus(id: string, status: LeadStatus, notes?: string): Promise<boolean> {
+  const sql = getDb();
+  const now = new Date().toISOString();
+
+  let updated = false;
+  if (sql) {
+    try {
+      if (notes !== undefined) {
+        await sql`
+          UPDATE solar_leads
+          SET status = ${status}, notes = ${notes}, updated_at = ${now}
+          WHERE id = ${id}
+        `;
+      } else {
+        await sql`
+          UPDATE solar_leads
+          SET status = ${status}, updated_at = ${now}
+          WHERE id = ${id}
+        `;
+      }
+      updated = true;
+    } catch (err) {
+      console.error("[updateLeadStatus DB Error]", err);
+    }
+  }
+
+  // Always sync local fallback
+  try {
+    const dataDir = path.join(process.cwd(), "data");
+    const leadsFile = path.join(dataDir, "leads.json");
+    if (fs.existsSync(leadsFile)) {
+      let leads: LeadData[] = JSON.parse(fs.readFileSync(leadsFile, "utf-8"));
+      const idx = leads.findIndex((l) => l.id === id);
+      if (idx !== -1) {
+        leads[idx].status = status;
+        if (notes !== undefined) leads[idx].notes = notes;
+        leads[idx].updatedAt = now;
+        fs.writeFileSync(leadsFile, JSON.stringify(leads, null, 2));
+        updated = true;
+      }
+    }
+  } catch (fsErr) {
+    console.error("[updateLeadStatus Local Error]", fsErr);
+  }
+
+  return updated;
+}
+
+export async function deleteLead(id: string): Promise<boolean> {
+  const sql = getDb();
+  let deleted = false;
+  if (sql) {
+    try {
+      await sql`DELETE FROM solar_leads WHERE id = ${id}`;
+      deleted = true;
+    } catch (err) {
+      console.error("[deleteLead DB Error]", err);
+    }
+  }
+
+  try {
+    const dataDir = path.join(process.cwd(), "data");
+    const leadsFile = path.join(dataDir, "leads.json");
+    if (fs.existsSync(leadsFile)) {
+      let leads: LeadData[] = JSON.parse(fs.readFileSync(leadsFile, "utf-8"));
+      leads = leads.filter((l) => l.id !== id);
+      fs.writeFileSync(leadsFile, JSON.stringify(leads, null, 2));
+      deleted = true;
+    }
+  } catch (fsErr) {
+    console.error("[deleteLead Local Error]", fsErr);
+  }
+
+  return deleted;
 }

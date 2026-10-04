@@ -12,7 +12,6 @@ export async function POST(request: NextRequest) {
       monthlyBill = "100€ - 250€",
       plannedBudget,
       timeline,
-      mainGoal,
       location = "",
       estimatedSavingsAnnual,
     } = body;
@@ -42,7 +41,6 @@ export async function POST(request: NextRequest) {
       monthlyBill: monthlyBill || "100€ - 250€",
       plannedBudget: plannedBudget || "3.500€ a 6.000€",
       timeline: timeline || "Imediato (2 a 4 semanas)",
-      mainGoal: mainGoal || "Reduzir 60-85% da fatura",
       location: location?.trim() || "",
       estimatedSavingsAnnual: Number(estimatedSavingsAnnual) || undefined,
       ip: request.headers.get("x-forwarded-for") || undefined,
