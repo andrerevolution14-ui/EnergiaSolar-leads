@@ -30,7 +30,6 @@ export default function LeadCaptureForm() {
     monthlyBill: "100€ - 250€",
     plannedBudget: "3.500€ a 6.000€",
     timeline: "Imediato (2 a 4 semanas)",
-    mainGoal: "Reduzir 60-85% da fatura",
     location: "",
   });
 
@@ -199,7 +198,6 @@ export default function LeadCaptureForm() {
                       monthlyBill: "100€ - 250€",
                       plannedBudget: "3.500€ a 6.000€",
                       timeline: "Imediato (2 a 4 semanas)",
-                      mainGoal: "Reduzir 60-85% da fatura",
                       location: "",
                     });
                   }}
@@ -367,19 +365,19 @@ export default function LeadCaptureForm() {
                 </div>
               </div>
 
-              {/* Monthly Bill, Main Goal, and Location */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+              {/* Monthly Bill and Location (Clean 2-column grid) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
                     Fatura de Luz Atual
                   </label>
                   <div className="relative">
-                    <Euro className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                    <Euro className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <select
                       id="fatura-select"
                       value={formData.monthlyBill}
                       onChange={(e) => setFormData({ ...formData, monthlyBill: e.target.value })}
-                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-sm focus:border-blue-500 transition-colors appearance-none cursor-pointer"
+                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-base sm:text-sm focus:border-blue-500 transition-colors appearance-none cursor-pointer"
                     >
                       <option value="Até 100€">Até 100€ / mês</option>
                       <option value="100€ - 250€">100€ a 250€ / mês</option>
@@ -391,67 +389,48 @@ export default function LeadCaptureForm() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
-                    Objetivo Principal
+                    Concelho / Localidade da Moradia
                   </label>
                   <div className="relative">
-                    <Target className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                    <select
-                      id="objetivo-select"
-                      value={formData.mainGoal}
-                      onChange={(e) => setFormData({ ...formData, mainGoal: e.target.value })}
-                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-sm focus:border-blue-500 transition-colors appearance-none cursor-pointer"
-                    >
-                      <option value="Reduzir 60-85% da fatura">Reduzir fatura ao máximo</option>
-                      <option value="Aproveitar Apoios Fundo Ambiental">Garantir Apoios do Estado</option>
-                      <option value="Independência contra subidas">Independência energética</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
-                    Concelho / Localidade
-                  </label>
-                  <div className="relative">
-                    <MapPin className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                    <MapPin className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Ex: Sintra / Braga / Faro"
                       value={formData.location}
                       onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-sm placeholder:text-slate-500 focus:border-blue-500 transition-colors"
+                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-base sm:text-sm placeholder:text-slate-500 focus:border-blue-500 transition-colors"
                     />
                   </div>
                 </div>
               </div>
 
               {/* What is included in this offer strip */}
-              <div className="bg-slate-900/90 rounded-2xl p-4 border border-slate-700 text-xs text-slate-300 space-y-1.5">
+              <div className="bg-slate-900/90 rounded-2xl p-4 sm:p-5 border border-slate-700 text-xs text-slate-300 space-y-2">
                 <div className="font-bold text-amber-300 uppercase tracking-wider text-[11px] mb-1">
-                  ✓ O que vai receber gratuitamente com este pedido:
+                  ✓ O que garante hoje ao avançar com este pedido:
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>Auditoria de satélite 3D ao telhado da sua casa (Valor: 150€ — Hoje Grátis)</span>
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>Auditoria de satélite 3D e dimensionamento do telhado (100% Grátis)</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>Cálculo de elegibilidade aos apoios a fundo perdido do Fundo Ambiental</span>
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>Cálculo e reserva de apoio a fundo perdido do Fundo Ambiental</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>Comparativo com as 3 empresas instaladoras nacionais mais bem avaliadas da sua zona</span>
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>Comparativo fechado com os 3 melhores instaladores certificados DGEG</span>
                 </div>
               </div>
 
-              {/* Submit Button */}
+              {/* Submit Button with Massive Buyer Intent */}
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white font-extrabold text-base sm:text-lg shadow-xl shadow-blue-600/30 flex items-center justify-center gap-3 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                  className="w-full py-4 sm:py-5 px-6 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white font-black text-base sm:text-lg shadow-xl shadow-blue-600/35 flex items-center justify-center gap-3 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                 >
-                  <span>Avançar para Estudo Gratuito & Apoios do Estado</span>
-                  <ArrowRight className="w-5 h-5" />
+                  <span>Quero Instalar os Meus Painéis e Começar a Poupar Este Mês</span>
+                  <ArrowRight className="w-5 h-5 shrink-0" />
                 </button>
               </div>
 
@@ -519,7 +498,7 @@ export default function LeadCaptureForm() {
                   </>
                 ) : (
                   <>
-                    <span>Sim, o número está correto — Enviar</span>
+                    <span>Sim, o Número Está Correto — Avançar com a Instalação</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}

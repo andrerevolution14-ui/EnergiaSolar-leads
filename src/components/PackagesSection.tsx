@@ -21,7 +21,7 @@ export default function PackagesSection() {
         "Garantia linear de 25 anos de produção energética",
       ],
       badge: "Mais Popular para Famílias",
-      cta: "Pedir Estudo para Moradia",
+      cta: "Instalar na Minha Moradia Este Mês",
     },
     {
       name: "Solução Autonomia & Máxima Eficiência",
@@ -38,7 +38,7 @@ export default function PackagesSection() {
         "Garantia total de 25 anos + Assistência e monitorização prioritária",
       ],
       badge: "Maior Apoio do Estado em 2026",
-      cta: "Garantir Vaga de Autonomia",
+      cta: "Instalar com Apoio do Estado Este Mês",
     },
     {
       name: "Solução Empresas & Negócios",
@@ -55,7 +55,7 @@ export default function PackagesSection() {
         "Relatório técnico de sustentabilidade e descarbonização ESG",
       ],
       badge: "Rentabilidade Máxima de Capital",
-      cta: "Pedir Análise Empresarial",
+      cta: "Avançar com Instalação na Minha Empresa",
     },
   ];
 

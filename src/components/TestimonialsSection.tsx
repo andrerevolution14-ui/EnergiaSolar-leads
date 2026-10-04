@@ -180,9 +180,9 @@ export default function TestimonialsSection() {
         <div className="mt-10 text-center">
           <a
             href="#formulario"
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm sm:text-base shadow-lg shadow-blue-600/25 transition-all hover:scale-105 active:scale-95"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-sm sm:text-base shadow-lg shadow-blue-600/25 transition-all hover:scale-105 active:scale-95"
           >
-            <span>Simular Minha Poupança com as Melhores Empresas &rarr;</span>
+            <span>Quero Começar a Poupar na Luz Este Mês &rarr;</span>
           </a>
         </div>
       </div>

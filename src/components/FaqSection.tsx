@@ -94,10 +94,10 @@ export default function FaqSection() {
           </p>
           <a
             href="#formulario"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm shadow-md transition-all hover:scale-105 active:scale-95"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-sm shadow-md transition-all hover:scale-105 active:scale-95"
           >
-            <span>Pedir Análise Gratuita ao Meu Telhado</span>
-            <ArrowRight className="w-4 h-4" />
+            <span>Quero Instalar Painéis na Minha Moradia Este Mês</span>
+            <ArrowRight className="w-4 h-4 shrink-0" />
           </a>
         </div>
       </div>

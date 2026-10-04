@@ -4,9 +4,9 @@ import { TrendingDown, CalendarClock, Shield, Award } from "lucide-react";
 export default function StatsBar() {
   const stats = [
     {
-      value: "40% - 70%",
-      label: "Poupança Direta na Fatura",
-      subtext: "Impacto imediato no 1º mês",
+      value: "40% - 75%",
+      label: "Poupança Direta na Luz",
+      subtext: "Corte logo no 1º mês",
       icon: TrendingDown,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
@@ -28,9 +28,9 @@ export default function StatsBar() {
       bgColor: "bg-indigo-50",
     },
     {
-      value: "+1.200",
-      label: "Sistemas Instalados",
-      subtext: "Residencial e Industrial",
+      value: "+1.400",
+      label: "Instalações Concluídas",
+      subtext: "Melhores empresas em Portugal",
       icon: Award,
       color: "text-blue-700",
       bgColor: "bg-blue-100/60",
@@ -38,28 +38,28 @@ export default function StatsBar() {
   ];
 
   return (
-    <section className="border-y border-slate-200/80 bg-white py-10">
+    <section className="border-y border-slate-200/80 bg-white py-6 sm:py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 lg:gap-8">
           {stats.map((stat, idx) => {
             const Icon = stat.icon;
             return (
               <div
                 key={idx}
-                className="flex flex-col items-center sm:items-start text-center sm:text-left p-4 rounded-2xl transition-colors hover:bg-slate-50/80"
+                className="flex flex-col items-center sm:items-start text-center sm:text-left p-2.5 sm:p-4 rounded-2xl transition-colors hover:bg-slate-50/80"
               >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className={`w-9 h-9 rounded-xl ${stat.bgColor} flex items-center justify-center`}>
-                    <Icon className={`w-5 h-5 ${stat.color}`} />
+                <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
+                  <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl ${stat.bgColor} flex items-center justify-center shrink-0`}>
+                    <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${stat.color}`} />
                   </div>
-                  <span className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">
+                  <span className="text-xl sm:text-3xl lg:text-4xl font-black text-slate-950 tracking-tight">
                     {stat.value}
                   </span>
                 </div>
-                <div className="font-bold text-slate-800 text-sm sm:text-base">
+                <div className="font-extrabold text-slate-900 text-xs sm:text-base leading-tight">
                   {stat.label}
                 </div>
-                <div className="text-xs text-slate-500 mt-0.5">
+                <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">
                   {stat.subtext}
                 </div>
               </div>

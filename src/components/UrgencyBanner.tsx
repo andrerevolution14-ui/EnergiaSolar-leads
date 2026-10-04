@@ -46,8 +46,8 @@ export default function UrgencyBanner() {
             href="#formulario"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl text-base font-extrabold text-slate-950 bg-white hover:bg-slate-100 active:scale-[0.98] shadow-xl shadow-white/10 transition-all hover:scale-105"
           >
-            <span>Verificar Elegibilidade aos Apoios Agora</span>
-            <ArrowRight className="w-5 h-5 text-blue-600" />
+            <span>Quero Instalar os Meus Painéis com Apoio do Estado Este Mês</span>
+            <ArrowRight className="w-5 h-5 text-blue-600 shrink-0" />
           </a>
         </div>
       </div>

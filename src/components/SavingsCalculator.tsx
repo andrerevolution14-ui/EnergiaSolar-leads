@@ -176,10 +176,10 @@ export default function SavingsCalculator() {
               <button
                 type="button"
                 onClick={scrollToFormWithPreset}
-                className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white font-extrabold text-base shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white font-black text-base shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
               >
-                <span>Verificar Apoios Disponíveis para Poupar Este Valor</span>
-                <ArrowRight className="w-5 h-5" />
+                <span>Quero Começar a Poupar Este Mês & Instalar Painéis</span>
+                <ArrowRight className="w-5 h-5 shrink-0" />
               </button>
               <div className="mt-3 flex items-center justify-center gap-2 text-xs text-slate-400 text-center">
                 <Check className="w-4 h-4 text-emerald-400 shrink-0" />
