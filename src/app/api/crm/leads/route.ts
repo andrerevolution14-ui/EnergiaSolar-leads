@@ -22,11 +22,17 @@ export async function GET(request: NextRequest) {
 
     // Calculate pipeline statistics
     const all = await getAllLeads();
+    const fechadasList = all.filter((l) => l.status === "fechada");
+    const totalVolume = fechadasList.reduce((acc, l) => acc + (Number(l.closedValue) || 0), 0);
+    const totalCommission = fechadasList.reduce((acc, l) => acc + (Number(l.commissionValue) || 0), 0);
+
     const stats = {
       total: all.length,
       novas: all.filter((l) => (l.status || "nova") === "nova").length,
       contactadas: all.filter((l) => l.status === "contactada").length,
-      fechadas: all.filter((l) => l.status === "fechada").length,
+      fechadas: fechadasList.length,
+      totalVolume,
+      totalCommission,
     };
 
     return NextResponse.json({
@@ -46,7 +52,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const { id, status, notes } = await request.json();
+    const { id, status, notes, closedValue, commissionValue } = await request.json();
 
     if (!id || !["nova", "contactada", "fechada"].includes(status)) {
       return NextResponse.json(
@@ -55,7 +61,13 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const updated = await updateLeadStatus(id, status as LeadStatus, notes);
+    const updated = await updateLeadStatus(
+      id,
+      status as LeadStatus,
+      notes,
+      closedValue !== undefined ? Number(closedValue) : undefined,
+      commissionValue !== undefined ? Number(commissionValue) : undefined
+    );
 
     if (!updated) {
       return NextResponse.json({ error: "Lead não encontrada." }, { status: 404 });

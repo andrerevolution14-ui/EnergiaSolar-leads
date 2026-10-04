@@ -18,25 +18,22 @@ async function init() {
         status VARCHAR(30) DEFAULT 'nova',
         notes TEXT DEFAULT '',
         estimated_savings_annual NUMERIC,
+        closed_value NUMERIC,
+        commission_value NUMERIC,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
 
-    await sql.query(`
-      ALTER TABLE solar_leads ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'nova';
-    `);
-    await sql.query(`
-      ALTER TABLE solar_leads ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT '';
-    `);
-    await sql.query(`
-      ALTER TABLE solar_leads ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
-    `);
+    await sql.query(`ALTER TABLE solar_leads ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'nova';`);
+    await sql.query(`ALTER TABLE solar_leads ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT '';`);
+    await sql.query(`ALTER TABLE solar_leads ADD COLUMN IF NOT EXISTS closed_value NUMERIC;`);
+    await sql.query(`ALTER TABLE solar_leads ADD COLUMN IF NOT EXISTS commission_value NUMERIC;`);
+    await sql.query(`ALTER TABLE solar_leads ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();`);
 
-    const count = await sql.query("SELECT COUNT(*) as total FROM solar_leads");
-    console.log("Database initialized successfully! Total leads in DB:", count);
+    console.log("Migration complete: closed_value and commission_value are active in Neon DB!");
   } catch (err) {
-    console.error("Database initialization failed:", err);
+    console.error("Database migration error:", err);
   }
 }
 

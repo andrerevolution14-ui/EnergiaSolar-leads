@@ -17,6 +17,8 @@ export interface LeadData {
   status?: LeadStatus;
   notes?: string;
   estimatedSavingsAnnual?: number;
+  closedValue?: number;
+  commissionValue?: number;
   ip?: string;
   userAgent?: string;
   createdAt?: string;
@@ -237,6 +239,8 @@ export async function getAllLeads(statusFilter?: string, searchQuery?: string): 
         status: (r.status as LeadStatus) || "nova",
         notes: r.notes || "",
         estimatedSavingsAnnual: r.estimated_savings_annual ? Number(r.estimated_savings_annual) : undefined,
+        closedValue: r.closed_value !== null && r.closed_value !== undefined ? Number(r.closed_value) : undefined,
+        commissionValue: r.commission_value !== null && r.commission_value !== undefined ? Number(r.commission_value) : undefined,
         createdAt: r.created_at ? new Date(r.created_at).toISOString() : undefined,
         updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
       }));
@@ -272,26 +276,31 @@ export async function getAllLeads(statusFilter?: string, searchQuery?: string): 
   return [];
 }
 
-export async function updateLeadStatus(id: string, status: LeadStatus, notes?: string): Promise<boolean> {
+export async function updateLeadStatus(
+  id: string,
+  status: LeadStatus,
+  notes?: string,
+  closedValue?: number,
+  commissionValue?: number
+): Promise<boolean> {
   const sql = getDb();
   const now = new Date().toISOString();
 
   let updated = false;
   if (sql) {
     try {
+      const setParts: string[] = [`status = '${status}'`, `updated_at = NOW()`];
       if (notes !== undefined) {
-        await sql`
-          UPDATE solar_leads
-          SET status = ${status}, notes = ${notes}, updated_at = ${now}
-          WHERE id = ${id}
-        `;
-      } else {
-        await sql`
-          UPDATE solar_leads
-          SET status = ${status}, updated_at = ${now}
-          WHERE id = ${id}
-        `;
+        setParts.push(`notes = '${notes.replace(/'/g, "''")}'`);
       }
+      if (closedValue !== undefined) {
+        setParts.push(`closed_value = ${isNaN(Number(closedValue)) ? "NULL" : Number(closedValue)}`);
+      }
+      if (commissionValue !== undefined) {
+        setParts.push(`commission_value = ${isNaN(Number(commissionValue)) ? "NULL" : Number(commissionValue)}`);
+      }
+
+      await sql.query(`UPDATE solar_leads SET ${setParts.join(", ")} WHERE id = '${id.replace(/'/g, "''")}'`);
       updated = true;
     } catch (err) {
       console.error("[updateLeadStatus DB Error]", err);
@@ -308,6 +317,8 @@ export async function updateLeadStatus(id: string, status: LeadStatus, notes?: s
       if (idx !== -1) {
         leads[idx].status = status;
         if (notes !== undefined) leads[idx].notes = notes;
+        if (closedValue !== undefined) leads[idx].closedValue = Number(closedValue);
+        if (commissionValue !== undefined) leads[idx].commissionValue = Number(commissionValue);
         leads[idx].updatedAt = now;
         fs.writeFileSync(leadsFile, JSON.stringify(leads, null, 2));
         updated = true;
