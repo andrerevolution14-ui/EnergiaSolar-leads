@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   authors: [{ name: "Solaris Energia" }],
   openGraph: {
     title: "Solaris — Energia Solar Chave-na-Mão",
-    description: "Reduza a sua fatura de energia em até 70%. Instalação residencial e industrial com 25 anos de garantia.",
+    description: "Reduza a sua fatura de energia em até 75%. Instalação residencial e industrial com 25 anos de garantia.",
     type: "website",
     locale: "pt_PT",
     images: [

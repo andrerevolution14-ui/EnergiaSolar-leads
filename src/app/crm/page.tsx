@@ -105,10 +105,15 @@ export default function CrmPage() {
   const [closingCommissionInput, setClosingCommissionInput] = useState("");
   const [isSubmittingClose, setIsSubmittingClose] = useState(false);
 
-  // Check initial session
+  // Check initial session & restore saved theme (Day mode is default)
   useEffect(() => {
     checkSession();
+    if (localStorage.getItem("crm_theme") === "dark") setIsDarkMode(true);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("crm_theme", isDarkMode ? "dark" : "light");
+  }, [isDarkMode]);
 
   const checkSession = async () => {
     try {
@@ -604,7 +609,7 @@ export default function CrmPage() {
   const averageTicket = stats.fechadas > 0 ? Math.round(totalVolume / stats.fechadas) : 0;
 
   return (
-    <div className={`min-h-screen ${theme.bg} flex flex-col font-sans transition-colors duration-150`}>
+    <div className={`${isDarkMode ? "dark" : ""} min-h-screen ${theme.bg} flex flex-col font-sans transition-colors duration-150`}>
       {/* Institutional Top Bar: Regulatory & Security Compliance (Non-Noise) */}
       <div className={`border-b px-4 sm:px-8 py-1.5 text-[11px] font-semibold flex flex-wrap items-center justify-between gap-2 ${theme.subHeaderBg}`}>
         <div className="flex items-center gap-3">
@@ -699,7 +704,7 @@ export default function CrmPage() {
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 text-xs font-bold text-rose-600 hover:text-rose-700 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 text-xs font-bold text-rose-600 hover:text-rose-700 dark:text-rose-300 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Sair</span>
@@ -1098,7 +1103,7 @@ export default function CrmPage() {
                               {col.status !== "nova" && (
                                 <button
                                   onClick={() => handleStatusChange(lead.id, "nova")}
-                                  className="px-2 py-1 rounded-md bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800 font-bold cursor-pointer transition-colors"
+                                  className="px-2 py-1 rounded-md bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/70 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800 font-bold cursor-pointer transition-colors"
                                 >
                                   Nova
                                 </button>
@@ -1106,7 +1111,7 @@ export default function CrmPage() {
                               {col.status !== "contactada" && (
                                 <button
                                   onClick={() => handleStatusChange(lead.id, "contactada")}
-                                  className="px-2 py-1 rounded-md bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 text-sky-900 dark:text-sky-300 border border-sky-300 dark:border-sky-800 font-bold cursor-pointer transition-colors"
+                                  className="px-2 py-1 rounded-md bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/70 text-sky-900 dark:text-sky-300 border border-sky-300 dark:border-sky-800 font-bold cursor-pointer transition-colors"
                                 >
                                   Contactada
                                 </button>
@@ -1114,7 +1119,7 @@ export default function CrmPage() {
                               {col.status !== "fechada" && (
                                 <button
                                   onClick={() => handleStatusChange(lead.id, "fechada")}
-                                  className="px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-black cursor-pointer transition-colors"
+                                  className="px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-black cursor-pointer transition-colors"
                                 >
                                   🏆 Fechar Venda
                                 </button>

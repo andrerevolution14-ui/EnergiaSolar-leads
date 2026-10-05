@@ -178,12 +178,12 @@ export default function HeroSection() {
             </div>
 
             {/* Social proof bar under image */}
-            <div className="mt-2.5 flex items-center justify-between px-3.5 py-2 bg-slate-50 rounded-xl border border-slate-200/80 text-xs text-slate-700 font-medium">
-              <div className="flex items-center gap-1.5">
+            <div className="mt-2.5 flex items-center justify-between gap-3 px-3.5 py-2 bg-slate-50 rounded-xl border border-slate-200/80 text-xs text-slate-700 font-medium">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
                 <span className="font-black text-slate-900">Google Avaliações:</span>
                 <span className="text-amber-500 font-black">★ 4.9/5.0</span>
               </div>
-              <span className="text-slate-500 text-[11px]">Auditado por Entidades Oficiais</span>
+              <span className="hidden sm:inline text-slate-500 text-[11px] text-right">Auditado por Entidades Oficiais</span>
             </div>
           </div>
         </div>

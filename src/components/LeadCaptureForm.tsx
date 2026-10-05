@@ -20,6 +20,7 @@ import {
   Calendar,
   Target,
   Award,
+  ChevronDown,
 } from "lucide-react";
 
 export default function LeadCaptureForm() {
@@ -224,7 +225,7 @@ export default function LeadCaptureForm() {
                 </label>
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   <label
-                    className={`cursor-pointer rounded-2xl p-4 border flex items-center gap-3 transition-all ${
+                    className={`cursor-pointer rounded-2xl p-3 sm:p-4 border flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 transition-all ${
                       formData.propertyType === "residencial"
                         ? "bg-blue-600/25 border-blue-500 text-white shadow-md"
                         : "bg-slate-900/60 border-slate-700 text-slate-300 hover:border-slate-600"
@@ -252,7 +253,7 @@ export default function LeadCaptureForm() {
                   </label>
 
                   <label
-                    className={`cursor-pointer rounded-2xl p-4 border flex items-center gap-3 transition-all ${
+                    className={`cursor-pointer rounded-2xl p-3 sm:p-4 border flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 transition-all ${
                       formData.propertyType === "comercial"
                         ? "bg-blue-600/25 border-blue-500 text-white shadow-md"
                         : "bg-slate-900/60 border-slate-700 text-slate-300 hover:border-slate-600"
@@ -295,7 +296,7 @@ export default function LeadCaptureForm() {
                       placeholder="Ex: João Pereira"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-sm placeholder:text-slate-500 focus:border-blue-500 transition-colors"
+                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-base sm:text-sm placeholder:text-slate-500 focus:border-blue-500 transition-colors"
                     />
                   </div>
                 </div>
@@ -312,7 +313,7 @@ export default function LeadCaptureForm() {
                       placeholder="Ex: 912 345 678"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-sm placeholder:text-slate-500 focus:border-blue-500 transition-colors"
+                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-base sm:text-sm placeholder:text-slate-500 focus:border-blue-500 transition-colors"
                     />
                   </div>
                   <span className="text-[11px] text-slate-400 mt-1 block">
@@ -329,18 +330,19 @@ export default function LeadCaptureForm() {
                     2. Orçamento Previsto / Valor da Intervenção
                   </label>
                   <div className="relative">
-                    <Euro className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                    <Euro className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <select
                       id="orcamento-select"
                       value={formData.plannedBudget}
                       onChange={(e) => setFormData({ ...formData, plannedBudget: e.target.value })}
-                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-sm focus:border-blue-500 transition-colors appearance-none cursor-pointer"
+                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-10 text-white text-base sm:text-sm focus:border-blue-500 transition-colors appearance-none cursor-pointer truncate"
                     >
-                      <option value="Até 3.500€">Até 3.500€ (Solução Essencial / Rápida Amortização)</option>
-                      <option value="3.500€ a 6.000€">3.500€ a 6.000€ (Solução Familiar Completa)</option>
-                      <option value="6.000€ a 12.000€">6.000€ a 12.000€ (Alta Autonomia & Baterias)</option>
-                      <option value="Mais de 12.000€">Mais de 12.000€ (Grande Moradia ou PME)</option>
+                      <option value="Até 3.500€">Até 3.500€ · Essencial</option>
+                      <option value="3.500€ a 6.000€">3.500€ a 6.000€ · Familiar</option>
+                      <option value="6.000€ a 12.000€">6.000€ a 12.000€ · Baterias</option>
+                      <option value="Mais de 12.000€">Mais de 12.000€ · Empresas</option>
                     </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                 </div>
 
@@ -350,17 +352,18 @@ export default function LeadCaptureForm() {
                     3. Para quando prevê a instalação?
                   </label>
                   <div className="relative">
-                    <Calendar className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <select
                       id="prazo-select"
                       value={formData.timeline}
                       onChange={(e) => setFormData({ ...formData, timeline: e.target.value })}
-                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-sm focus:border-blue-500 transition-colors appearance-none cursor-pointer"
+                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-10 text-white text-base sm:text-sm focus:border-blue-500 transition-colors appearance-none cursor-pointer truncate"
                     >
-                      <option value="Imediato (2 a 4 semanas)">Imediato (próximas 2 a 4 semanas - Prioritário)</option>
-                      <option value="1 a 3 meses">A curto prazo (nos próximos 1 a 3 meses)</option>
-                      <option value="Apenas planeamento para este ano">Apenas a orçamentar / planear para este ano</option>
+                      <option value="Imediato (2 a 4 semanas)">Imediato (2 a 4 semanas)</option>
+                      <option value="1 a 3 meses">Nos próximos 1 a 3 meses</option>
+                      <option value="Apenas planeamento para este ano">Só a planear para este ano</option>
                     </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                 </div>
               </div>
@@ -377,13 +380,14 @@ export default function LeadCaptureForm() {
                       id="fatura-select"
                       value={formData.monthlyBill}
                       onChange={(e) => setFormData({ ...formData, monthlyBill: e.target.value })}
-                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-base sm:text-sm focus:border-blue-500 transition-colors appearance-none cursor-pointer"
+                      className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-10 text-white text-base sm:text-sm focus:border-blue-500 transition-colors appearance-none cursor-pointer"
                     >
                       <option value="Até 100€">Até 100€ / mês</option>
                       <option value="100€ - 250€">100€ a 250€ / mês</option>
                       <option value="250€ - 500€">250€ a 500€ / mês</option>
                       <option value="Mais de 500€">Mais de 500€ / mês</option>
                     </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                 </div>
 

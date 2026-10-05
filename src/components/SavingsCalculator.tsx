@@ -24,13 +24,24 @@ export default function SavingsCalculator() {
     setMonthlyBill(value);
   };
 
+  // Consistent Portuguese-style grouping with dots (pt-PT does not group 4-digit numbers)
+  const fmt = (n: number) => n.toLocaleString("de-DE");
+
   const scrollToFormWithPreset = () => {
+    // Sync the simulator values with the lead form. The form fields are React-controlled,
+    // so we must dispatch real events (setting .value alone does not update React state).
+    const propertyRadio = document.querySelector<HTMLInputElement>(
+      `input[name="propertyType"][value="${profile === "residencial" ? "residencial" : "comercial"}"]`
+    );
+    propertyRadio?.click();
+
     const billSelector = document.getElementById("fatura-select") as HTMLSelectElement | null;
     if (billSelector) {
       if (monthlyBill < 100) billSelector.value = "Até 100€";
       else if (monthlyBill <= 250) billSelector.value = "100€ - 250€";
       else if (monthlyBill <= 500) billSelector.value = "250€ - 500€";
       else billSelector.value = "Mais de 500€";
+      billSelector.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     const formElement = document.getElementById("formulario");
@@ -104,7 +115,7 @@ export default function SavingsCalculator() {
                   </label>
                   <div className="flex items-center gap-3">
                     <span className="text-3xl sm:text-4xl font-black text-blue-400 font-mono">
-                      {monthlyBill}€
+                      {fmt(monthlyBill)}€
                     </span>
                     <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">
                       / mês
@@ -137,7 +148,7 @@ export default function SavingsCalculator() {
                           : "bg-slate-800/80 text-slate-300 border-slate-700 hover:border-slate-500"
                       }`}
                     >
-                      {val}€
+                      {fmt(val)}€
                     </button>
                   ))}
                 </div>
@@ -148,7 +159,7 @@ export default function SavingsCalculator() {
                 <div className="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/80">
                   <span className="text-slate-400 text-xs block mb-1">Poupança Mensal</span>
                   <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono">
-                    ~{monthlySavings}€
+                    ~{fmt(monthlySavings)}€
                   </span>
                   <span className="text-[11px] text-slate-400 block mt-1">menos na conta/mês</span>
                 </div>
@@ -156,7 +167,7 @@ export default function SavingsCalculator() {
                 <div className="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/80">
                   <span className="text-slate-400 text-xs block mb-1">Poupança Anual</span>
                   <span className="text-2xl sm:text-3xl font-black text-white font-mono">
-                    ~{annualSavings}€
+                    ~{fmt(annualSavings)}€
                   </span>
                   <span className="text-[11px] text-slate-400 block mt-1">por cada ano</span>
                 </div>
@@ -164,7 +175,7 @@ export default function SavingsCalculator() {
                 <div className="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/80">
                   <span className="text-slate-400 text-xs block mb-1">Total em 25 Anos</span>
                   <span className="text-2xl sm:text-3xl font-black text-blue-400 font-mono">
-                    {twentyFiveYearSavings.toLocaleString("pt-PT")}€
+                    {fmt(twentyFiveYearSavings)}€
                   </span>
                   <span className="text-[11px] text-slate-400 block mt-1">garantia de rendimento</span>
                 </div>
@@ -181,8 +192,8 @@ export default function SavingsCalculator() {
                 <span>Quero Começar a Poupar Este Mês & Instalar Painéis</span>
                 <ArrowRight className="w-5 h-5 shrink-0" />
               </button>
-              <div className="mt-3 flex items-center justify-center gap-2 text-xs text-slate-400 text-center">
-                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div className="mt-3 text-xs text-slate-400 text-center">
+                <Check className="inline w-4 h-4 text-emerald-400 mr-1 -mt-0.5" />
                 <span>Simulação 100% gratuita • Sem qualquer fidelização</span>
               </div>
             </div>

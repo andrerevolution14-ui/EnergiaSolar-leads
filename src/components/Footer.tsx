@@ -115,11 +115,11 @@ export default function Footer() {
         </div>
 
         {/* Legal & Copyright */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-[11px]">
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-[11px] text-center sm:text-left">
           <div>
             © {new Date().getFullYear()} Solaris Portugal — Plataforma Certificada de Energia Solar. Todos os direitos reservados.
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
             <span className="hover:text-slate-300">
               Proteção de Dados & RGPD
             </span>
