@@ -3,6 +3,13 @@
 import React, { useState } from "react";
 import confetti from "canvas-confetti";
 import {
+  trackMetaLead,
+  extractHighestValue,
+  generateEventId,
+  getCookie,
+  getFbcParam,
+} from "@/lib/tracking";
+import {
   ShieldCheck,
   CheckCircle2,
   Phone,
@@ -64,10 +71,39 @@ export default function LeadCaptureForm() {
     setErrorMessage(null);
 
     try {
+      // 1. Extração do valor mais alto do formulário
+      const highestValue = extractHighestValue([
+        formData.plannedBudget,
+        formData.monthlyBill,
+      ]);
+
+      // 2. Geração de ID de evento para desduplicação Pixel + Conversions API
+      const eventId = generateEventId();
+
+      // 3. Disparo do evento Lead no Meta Pixel (Browser)
+      trackMetaLead({
+        eventId,
+        value: highestValue,
+        currency: "EUR",
+        contentName: `Estudo Solar (${formData.propertyType})`,
+      });
+
+      // 4. Parâmetros de atribuição Meta
+      const fbp = getCookie("_fbp");
+      const fbc = getFbcParam();
+      const pageUrl = typeof window !== "undefined" ? window.location.href : "";
+
       const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          eventId,
+          highestValue,
+          fbp,
+          fbc,
+          pageUrl,
+        }),
       });
 
       const data = await response.json();

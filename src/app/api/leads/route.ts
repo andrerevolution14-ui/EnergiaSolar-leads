@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveLead, LeadData } from "@/lib/leads";
+import { sendMetaConversionsApiEvent } from "@/lib/meta-capi";
+import { extractHighestValue, generateEventId } from "@/lib/tracking-utils";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,6 +16,11 @@ export async function POST(request: NextRequest) {
       timeline,
       location = "",
       estimatedSavingsAnnual,
+      eventId: incomingEventId,
+      highestValue: incomingHighestValue,
+      fbp,
+      fbc,
+      pageUrl,
     } = body;
 
     // Validation
@@ -32,6 +39,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 1. Extração do valor mais alto para envio à Meta
+    const finalLeadValue =
+      Number(incomingHighestValue) > 0
+        ? Number(incomingHighestValue)
+        : extractHighestValue([plannedBudget, monthlyBill, estimatedSavingsAnnual]);
+
+    // 2. Event ID para desduplicação Pixel + Conversions API
+    const eventId = incomingEventId || generateEventId();
+
+    const ipAddress =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      undefined;
+    const userAgent = request.headers.get("user-agent") || undefined;
+
     const leadData: LeadData = {
       name: name.trim(),
       phone: phone.trim(),
@@ -43,11 +65,32 @@ export async function POST(request: NextRequest) {
       timeline: timeline || "Imediato (2 a 4 semanas)",
       location: location?.trim() || "",
       estimatedSavingsAnnual: Number(estimatedSavingsAnnual) || undefined,
-      ip: request.headers.get("x-forwarded-for") || undefined,
-      userAgent: request.headers.get("user-agent") || undefined,
+      notes: `Valor Estimado: ${finalLeadValue}€ | EventID: ${eventId}`,
+      ip: ipAddress,
+      userAgent: userAgent,
     };
 
     const result = await saveLead(leadData);
+
+    // 3. Disparo da Conversions API (CAPI) para a Meta
+    let capiResult = null;
+    try {
+      capiResult = await sendMetaConversionsApiEvent({
+        eventId,
+        value: finalLeadValue,
+        currency: "EUR",
+        contentName: `Lead Estudo Solar (${leadData.propertyType})`,
+        sourceUrl: pageUrl || request.headers.get("referer") || "https://solaris-energia.pt",
+        userAgent,
+        ipAddress,
+        fbp: fbp || undefined,
+        fbc: fbc || undefined,
+        phone: cleanPhone,
+        firstName: name.trim().split(" ")[0],
+      });
+    } catch (capiErr: any) {
+      console.error("[Meta CAPI Error in /api/leads]", capiErr);
+    }
 
     return NextResponse.json({
       success: true,
@@ -55,6 +98,9 @@ export async function POST(request: NextRequest) {
       leadId: result.leadId,
       dbSaved: result.dbSaved,
       emailSent: result.emailSent,
+      metaCapi: capiResult,
+      eventId,
+      leadValue: finalLeadValue,
     });
   } catch (error: any) {
     console.error("[API Lead POST Error]", error);
