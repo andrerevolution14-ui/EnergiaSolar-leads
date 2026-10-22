@@ -25,19 +25,13 @@ const QUICK_OPTIONS: QuickOption[] = [
     message: "Olá! Gostaria de receber um estudo solar gratuito e saber quanto posso poupar na minha moradia.",
   },
   {
-    id: "apoios",
-    badge: "🏛️ Estado 2026",
-    title: "Apoios Fundo Ambiental",
-    message: "Olá! Gostaria de verificar a minha elegibilidade aos apoios a fundo perdido do Fundo Ambiental para painéis solares.",
-  },
-  {
     id: "fatura",
     badge: "⚡ Poupança",
     title: "Reduzir Fatura da Luz",
     message: "Olá! Quero reduzir a fatura de eletricidade da minha casa/empresa e conhecer as opções de autoconsumo e baterias.",
   },
   {
-    id: "duvidas",
+    id: "especialista",
     badge: "💬 Dúvidas",
     title: "Falar com Especialista",
     message: "Olá! Tenho algumas questões sobre instalação de painéis solares e gostaria de falar com um especialista.",
@@ -204,10 +198,10 @@ export default function WhatsAppFloatingButton() {
                   Olá! 👋 Tem interesse em energia solar?
                 </p>
                 <p className="text-slate-600">
-                  Descubra quanto pode poupar na luz e se a sua moradia tem direito a apoios do Fundo Ambiental em 2026.
+                  Descubra quanto pode poupar na sua fatura da luz e receba uma simulação personalizada sem qualquer compromisso.
                 </p>
                 <p className="text-slate-500 text-[11px] mt-2 font-medium">
-                  Escolha o seu objetivo para iniciarmos:
+                  Escolha uma opção para iniciarmos a conversa:
                 </p>
                 <div className="flex items-center justify-end gap-1 text-[10px] text-slate-400 mt-1">
                   <span>Agora</span>
