@@ -23,15 +23,25 @@ export async function POST(request: NextRequest) {
       pageUrl,
     } = body;
 
+    const isWhatsApp = body.source === "whatsapp" || body.origin === "whatsapp";
+
     // Validation
-    if (!name || typeof name !== "string" || name.trim().length < 2) {
+    const leadName =
+      name && typeof name === "string" && name.trim().length >= 2
+        ? name.trim()
+        : isWhatsApp
+        ? "Lead WhatsApp (Interessado Solar)"
+        : "";
+
+    if (!leadName && !isWhatsApp) {
       return NextResponse.json(
         { error: "Por favor indique o seu nome completo." },
         { status: 400 }
       );
     }
 
-    const cleanPhone = (phone || "").replace(/\s+/g, "").replace(/[-().]/g, "");
+    const rawPhone = phone || (isWhatsApp ? "351928136297" : "");
+    const cleanPhone = (rawPhone || "").replace(/\s+/g, "").replace(/[-().]/g, "");
     if (!cleanPhone || cleanPhone.length < 9) {
       return NextResponse.json(
         { error: "Por favor indique um número de telefone válido com pelo menos 9 dígitos." },
@@ -43,6 +53,8 @@ export async function POST(request: NextRequest) {
     const finalLeadValue =
       Number(incomingHighestValue) > 0
         ? Number(incomingHighestValue)
+        : isWhatsApp
+        ? 6000
         : extractHighestValue([plannedBudget, monthlyBill, estimatedSavingsAnnual]);
 
     // 2. Event ID para desduplicação Pixel + Conversions API
@@ -55,17 +67,21 @@ export async function POST(request: NextRequest) {
     const userAgent = request.headers.get("user-agent") || undefined;
 
     const leadData: LeadData = {
-      name: name.trim(),
-      phone: phone.trim(),
+      name: leadName,
+      phone: phone?.trim() || (isWhatsApp ? "+351 928 136 297 (Origem WhatsApp)" : cleanPhone),
       propertyType: ["residencial", "comercial", "industrial"].includes(propertyType)
         ? propertyType
         : "residencial",
-      monthlyBill: monthlyBill || "100€ - 250€",
+      monthlyBill: monthlyBill || (isWhatsApp ? "Contacto WhatsApp" : "100€ - 250€"),
       plannedBudget: plannedBudget || "3.500€ a 6.000€",
       timeline: timeline || "Imediato (2 a 4 semanas)",
       location: location?.trim() || "",
       estimatedSavingsAnnual: Number(estimatedSavingsAnnual) || undefined,
-      notes: `Valor Estimado: ${finalLeadValue}€ | EventID: ${eventId}`,
+      notes: body.notes
+        ? `${body.notes} | EventID: ${eventId}`
+        : isWhatsApp
+        ? `Origem: Botão Flutuante WhatsApp | Mensagem: "${body.whatsappMessage || "Pedido Geral de Informações"}" | EventID: ${eventId}`
+        : `Valor Estimado: ${finalLeadValue}€ | EventID: ${eventId}`,
       ip: ipAddress,
       userAgent: userAgent,
     };
@@ -79,14 +95,16 @@ export async function POST(request: NextRequest) {
         eventId,
         value: finalLeadValue,
         currency: "EUR",
-        contentName: `Lead Estudo Solar (${leadData.propertyType})`,
+        contentName: isWhatsApp
+          ? "Lead WhatsApp • Estudo Solar"
+          : `Lead Estudo Solar (${leadData.propertyType})`,
         sourceUrl: pageUrl || request.headers.get("referer") || "https://solaris-energia.pt",
         userAgent,
         ipAddress,
         fbp: fbp || undefined,
         fbc: fbc || undefined,
         phone: cleanPhone,
-        firstName: name.trim().split(" ")[0],
+        firstName: leadName ? leadName.split(" ")[0] : "Cliente",
       });
     } catch (capiErr: any) {
       console.error("[Meta CAPI Error in /api/leads]", capiErr);

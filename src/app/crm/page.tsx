@@ -953,6 +953,12 @@ export default function CrmPage() {
                                     <Home className="w-3 h-3 text-blue-600 shrink-0" />
                                   )}
                                   <span className="capitalize">{lead.propertyType}</span>
+                                  {lead.notes?.toLowerCase().includes("whatsapp") && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-bold text-[9px] border border-emerald-300 dark:border-emerald-800">
+                                      <MessageCircle className="w-2.5 h-2.5" />
+                                      WhatsApp
+                                    </span>
+                                  )}
                                   {lead.location && (
                                     <>
                                       <span>•</span>

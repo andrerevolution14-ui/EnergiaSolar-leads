@@ -59,12 +59,14 @@ export function extractHighestValue(
       }
     }
 
-    // 4. Se o texto contiver números simples soltos
-    const digitsOnly = text.replace(/[^0-9]/g, "");
-    if (digitsOnly.length >= 3) {
-      const parsed = parseFloat(digitsOnly);
-      if (Number.isFinite(parsed) && parsed > 0) {
-        candidates.push(parsed);
+    // 4. Se ainda nenhum número foi encontrado e o texto contiver dígitos soltos
+    if (candidates.length === 0) {
+      const digitsOnly = text.replace(/[^0-9]/g, "");
+      if (digitsOnly.length >= 3 && digitsOnly.length <= 6) {
+        const parsed = parseFloat(digitsOnly);
+        if (Number.isFinite(parsed) && parsed > 0) {
+          candidates.push(parsed);
+        }
       }
     }
   }
