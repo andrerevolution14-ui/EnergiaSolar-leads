@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import confetti from "canvas-confetti";
 import {
   trackMetaLead,
@@ -30,6 +30,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 
+const STORAGE_KEY = "solaris_lead_autofill_data";
+
 export default function LeadCaptureForm() {
   const [formData, setFormData] = useState({
     name: "",
@@ -41,10 +43,112 @@ export default function LeadCaptureForm() {
     location: "",
   });
 
+  const [hasAutofilled, setHasAutofilled] = useState(false);
   const [isVerifyingModalOpen, setIsVerifyingModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submittedLeadId, setSubmittedLeadId] = useState<string | null>(null);
+
+  // 1. Preenchimento automático com informação existente (localStorage, URL query params, Simulador)
+  useEffect(() => {
+    let savedLocal: Partial<typeof formData> = {};
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        savedLocal = JSON.parse(stored);
+      }
+    } catch {
+      // ignore
+    }
+
+    let urlData: Partial<typeof formData> = {};
+    try {
+      if (typeof window !== "undefined") {
+        const search = new URLSearchParams(window.location.search);
+        const nameParam = search.get("name") || search.get("nome");
+        const phoneParam = search.get("phone") || search.get("tel") || search.get("telefone");
+        const locationParam = search.get("location") || search.get("localidade") || search.get("cidade") || search.get("concelho");
+        const propertyTypeParam = search.get("propertyType") || search.get("tipo");
+        const monthlyBillParam = search.get("monthlyBill") || search.get("fatura");
+        const budgetParam = search.get("budget") || search.get("orcamento");
+        const timelineParam = search.get("timeline") || search.get("prazo");
+
+        if (nameParam) urlData.name = nameParam.trim();
+        if (phoneParam) urlData.phone = phoneParam.trim();
+        if (locationParam) urlData.location = locationParam.trim();
+        if (propertyTypeParam && ["residencial", "comercial"].includes(propertyTypeParam)) {
+          urlData.propertyType = propertyTypeParam as any;
+        }
+        if (monthlyBillParam) urlData.monthlyBill = monthlyBillParam;
+        if (budgetParam) urlData.plannedBudget = budgetParam;
+        if (timelineParam) urlData.timeline = timelineParam;
+      }
+    } catch {
+      // ignore
+    }
+
+    const merged = { ...savedLocal, ...urlData };
+    if (Object.keys(merged).length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        ...merged,
+      }));
+      if (merged.name || merged.phone || merged.location) {
+        setHasAutofilled(true);
+      }
+    }
+
+    // Escutar eventos ao vivo de outros componentes (ex: Simulador de Poupança)
+    const handleLiveSync = (e: any) => {
+      if (e?.detail) {
+        setFormData((prev) => {
+          const next = { ...prev, ...e.detail };
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          } catch {
+            // ignore
+          }
+          return next;
+        });
+      }
+    };
+
+    window.addEventListener("solaris:update-lead-form", handleLiveSync);
+    return () => {
+      window.removeEventListener("solaris:update-lead-form", handleLiveSync);
+    };
+  }, []);
+
+  // Atualizar campo e persistir em localStorage
+  const updateFormField = (field: keyof typeof formData, value: string) => {
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
+  const handleClearAutofill = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    setFormData({
+      name: "",
+      phone: "",
+      propertyType: "residencial",
+      monthlyBill: "100€ - 250€",
+      plannedBudget: "3.500€ a 6.000€",
+      timeline: "Imediato (2 a 4 semanas)",
+      location: "",
+    });
+    setHasAutofilled(false);
+  };
 
   // Quick validation before confirmation modal
   const handleOpenVerification = (e: React.FormEvent) => {
@@ -246,7 +350,32 @@ export default function LeadCaptureForm() {
             </div>
           ) : (
             /* Lead Capture Form */
-            <form onSubmit={handleOpenVerification} className="space-y-6">
+            <form
+              id="formulario-leads"
+              name="solarisLeadForm"
+              autoComplete="on"
+              onSubmit={handleOpenVerification}
+              className="space-y-6"
+            >
+              {/* Notificação discreta de Preenchimento Automático com dados existentes */}
+              {hasAutofilled && (formData.name || formData.phone || formData.location) && (
+                <div className="flex items-center justify-between text-xs text-sky-200 bg-sky-950/70 border border-sky-500/40 rounded-2xl px-4 py-2.5 animate-in fade-in slide-in-from-top-1 duration-300 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span className="font-medium">
+                      Formulário preenchido automaticamente com a sua informação existente.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearAutofill}
+                    className="text-xs text-sky-300 hover:text-white underline font-bold cursor-pointer shrink-0 ml-3 transition-colors"
+                  >
+                    Limpar dados
+                  </button>
+                </div>
+              )}
+
               {errorMessage && (
                 <div className="p-4 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-200 text-sm flex items-center gap-3">
                   <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
@@ -272,7 +401,7 @@ export default function LeadCaptureForm() {
                       name="propertyType"
                       value="residencial"
                       checked={formData.propertyType === "residencial"}
-                      onChange={(e) => setFormData({ ...formData, propertyType: e.target.value })}
+                      onChange={(e) => updateFormField("propertyType", e.target.value)}
                       className="hidden"
                     />
                     <div
@@ -300,7 +429,7 @@ export default function LeadCaptureForm() {
                       name="propertyType"
                       value="comercial"
                       checked={formData.propertyType === "comercial"}
-                      onChange={(e) => setFormData({ ...formData, propertyType: e.target.value })}
+                      onChange={(e) => updateFormField("propertyType", e.target.value)}
                       className="hidden"
                     />
                     <div
@@ -321,34 +450,42 @@ export default function LeadCaptureForm() {
               {/* Personal Info Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+                  <label htmlFor="lead-name" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
                     Nome Completo <span className="text-blue-400">*</span>
                   </label>
                   <div className="relative">
-                    <User className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                    <User className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="text"
+                      id="lead-name"
+                      name="name"
+                      autoComplete="name"
+                      autoCapitalize="words"
                       required
                       placeholder="Ex: João Pereira"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) => updateFormField("name", e.target.value)}
                       className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-base sm:text-sm placeholder:text-slate-500 focus:border-blue-500 transition-colors"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+                  <label htmlFor="lead-phone" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
                     Número de Telemóvel <span className="text-blue-400">*</span>
                   </label>
                   <div className="relative">
-                    <Phone className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                    <Phone className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="tel"
+                      id="lead-phone"
+                      name="tel"
+                      autoComplete="tel"
+                      inputMode="tel"
                       required
                       placeholder="Ex: 912 345 678"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      onChange={(e) => updateFormField("phone", e.target.value)}
                       className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-base sm:text-sm placeholder:text-slate-500 focus:border-blue-500 transition-colors"
                     />
                   </div>
@@ -362,15 +499,17 @@ export default function LeadCaptureForm() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 {/* 1. Planned Budget */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+                  <label htmlFor="orcamento-select" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
                     2. Orçamento Previsto / Valor da Intervenção
                   </label>
                   <div className="relative">
                     <Euro className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <select
                       id="orcamento-select"
+                      name="plannedBudget"
+                      autoComplete="off"
                       value={formData.plannedBudget}
-                      onChange={(e) => setFormData({ ...formData, plannedBudget: e.target.value })}
+                      onChange={(e) => updateFormField("plannedBudget", e.target.value)}
                       className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-10 text-white text-base sm:text-sm focus:border-blue-500 transition-colors appearance-none cursor-pointer truncate"
                     >
                       <option value="Até 3.500€">Até 3.500€ · Essencial</option>
@@ -384,15 +523,17 @@ export default function LeadCaptureForm() {
 
                 {/* 2. Timeline */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+                  <label htmlFor="prazo-select" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
                     3. Para quando prevê a instalação?
                   </label>
                   <div className="relative">
                     <Calendar className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <select
                       id="prazo-select"
+                      name="timeline"
+                      autoComplete="off"
                       value={formData.timeline}
-                      onChange={(e) => setFormData({ ...formData, timeline: e.target.value })}
+                      onChange={(e) => updateFormField("timeline", e.target.value)}
                       className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-10 text-white text-base sm:text-sm focus:border-blue-500 transition-colors appearance-none cursor-pointer truncate"
                     >
                       <option value="Imediato (2 a 4 semanas)">Imediato (2 a 4 semanas)</option>
@@ -407,15 +548,17 @@ export default function LeadCaptureForm() {
               {/* Monthly Bill and Location (Clean 2-column grid) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+                  <label htmlFor="fatura-select" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
                     Fatura de Luz Atual
                   </label>
                   <div className="relative">
                     <Euro className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <select
                       id="fatura-select"
+                      name="monthlyBill"
+                      autoComplete="off"
                       value={formData.monthlyBill}
-                      onChange={(e) => setFormData({ ...formData, monthlyBill: e.target.value })}
+                      onChange={(e) => updateFormField("monthlyBill", e.target.value)}
                       className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-10 text-white text-base sm:text-sm focus:border-blue-500 transition-colors appearance-none cursor-pointer"
                     >
                       <option value="Até 100€">Até 100€ / mês</option>
@@ -428,16 +571,19 @@ export default function LeadCaptureForm() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+                  <label htmlFor="lead-location" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
                     Concelho / Localidade da Moradia
                   </label>
                   <div className="relative">
                     <MapPin className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="text"
+                      id="lead-location"
+                      name="address-level2"
+                      autoComplete="address-level2"
                       placeholder="Ex: Sintra / Braga / Faro"
                       value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      onChange={(e) => updateFormField("location", e.target.value)}
                       className="w-full bg-slate-900/80 border border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-white text-base sm:text-sm placeholder:text-slate-500 focus:border-blue-500 transition-colors"
                     />
                   </div>

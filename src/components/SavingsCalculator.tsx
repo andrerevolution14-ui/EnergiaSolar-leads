@@ -28,19 +28,43 @@ export default function SavingsCalculator() {
   const fmt = (n: number) => n.toLocaleString("de-DE");
 
   const scrollToFormWithPreset = () => {
-    // Sync the simulator values with the lead form. The form fields are React-controlled,
-    // so we must dispatch real events (setting .value alone does not update React state).
+    const targetProperty = profile === "residencial" ? "residencial" : "comercial";
+    let targetBill = "100€ - 250€";
+    if (monthlyBill < 100) targetBill = "Até 100€";
+    else if (monthlyBill <= 250) targetBill = "100€ - 250€";
+    else if (monthlyBill <= 500) targetBill = "250€ - 500€";
+    else targetBill = "Mais de 500€";
+
+    // Notificar o formulário de captura e persistir a seleção
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("solaris:update-lead-form", {
+          detail: {
+            propertyType: targetProperty,
+            monthlyBill: targetBill,
+          },
+        })
+      );
+      try {
+        const stored = localStorage.getItem("solaris_lead_autofill_data");
+        const parsed = stored ? JSON.parse(stored) : {};
+        localStorage.setItem(
+          "solaris_lead_autofill_data",
+          JSON.stringify({ ...parsed, propertyType: targetProperty, monthlyBill: targetBill })
+        );
+      } catch {
+        // ignore
+      }
+    }
+
     const propertyRadio = document.querySelector<HTMLInputElement>(
-      `input[name="propertyType"][value="${profile === "residencial" ? "residencial" : "comercial"}"]`
+      `input[name="propertyType"][value="${targetProperty}"]`
     );
     propertyRadio?.click();
 
     const billSelector = document.getElementById("fatura-select") as HTMLSelectElement | null;
     if (billSelector) {
-      if (monthlyBill < 100) billSelector.value = "Até 100€";
-      else if (monthlyBill <= 250) billSelector.value = "100€ - 250€";
-      else if (monthlyBill <= 500) billSelector.value = "250€ - 500€";
-      else billSelector.value = "Mais de 500€";
+      billSelector.value = targetBill;
       billSelector.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
