@@ -88,34 +88,39 @@ export async function POST(request: NextRequest) {
 
     const result = await saveLead(leadData);
 
-    // 3. Disparo da Conversions API (CAPI) para a Meta
+    // 3. Disparo da Conversions API (CAPI) para a Meta (apenas se não for duplicado recente)
     let capiResult = null;
-    try {
-      capiResult = await sendMetaConversionsApiEvent({
-        eventId,
-        value: finalLeadValue,
-        currency: "EUR",
-        contentName: isWhatsApp
-          ? "Lead WhatsApp • Estudo Solar"
-          : `Lead Estudo Solar (${leadData.propertyType})`,
-        sourceUrl: pageUrl || request.headers.get("referer") || "https://solaris-energia.pt",
-        userAgent,
-        ipAddress,
-        fbp: fbp || undefined,
-        fbc: fbc || undefined,
-        phone: cleanPhone,
-        firstName: leadName ? leadName.split(" ")[0] : "Cliente",
-      });
-    } catch (capiErr: any) {
-      console.error("[Meta CAPI Error in /api/leads]", capiErr);
+    if (!(result as any).isDuplicate) {
+      try {
+        capiResult = await sendMetaConversionsApiEvent({
+          eventId,
+          value: finalLeadValue,
+          currency: "EUR",
+          contentName: isWhatsApp
+            ? "Lead WhatsApp • Estudo Solar"
+            : `Lead Estudo Solar (${leadData.propertyType})`,
+          sourceUrl: pageUrl || request.headers.get("referer") || "https://solaris-energia.pt",
+          userAgent,
+          ipAddress,
+          fbp: fbp || undefined,
+          fbc: fbc || undefined,
+          phone: cleanPhone,
+          firstName: leadName ? leadName.split(" ")[0] : "Cliente",
+        });
+      } catch (capiErr: any) {
+        console.error("[Meta CAPI Error in /api/leads]", capiErr);
+      }
     }
 
     return NextResponse.json({
       success: true,
-      message: "Pedido de simulação recebido com sucesso!",
+      message: (result as any).isDuplicate
+        ? "Contacto reconhecido e atualizado com sucesso!"
+        : "Pedido de simulação recebido com sucesso!",
       leadId: result.leadId,
       dbSaved: result.dbSaved,
       emailSent: result.emailSent,
+      isDuplicate: (result as any).isDuplicate || false,
       metaCapi: capiResult,
       eventId,
       leadValue: finalLeadValue,

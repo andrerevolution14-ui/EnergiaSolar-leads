@@ -50,7 +50,12 @@ export async function saveLead(data: LeadData) {
   let emailSent = false;
   let errorDetails: string[] = [];
 
-  // 1. Neon Database Storage
+  const isWhatsAppLead =
+    enrichedLead.name.toLowerCase().includes("whatsapp") ||
+    enrichedLead.phone.includes("928") ||
+    (enrichedLead.notes ? enrichedLead.notes.toLowerCase().includes("whatsapp") : false);
+
+  // 1. Neon Database Storage with Deduplication
   const sql = getDb();
   if (sql) {
     try {
@@ -71,6 +76,52 @@ export async function saveLead(data: LeadData) {
           updated_at TIMESTAMPTZ DEFAULT NOW()
         );
       `;
+
+      // Verificação de desduplicação (janela de 30 minutos)
+      let recentDuplicates: any[] = [];
+      if (isWhatsAppLead) {
+        recentDuplicates = await sql`
+          SELECT id, notes FROM solar_leads
+          WHERE (name ILIKE '%WhatsApp%' OR phone ILIKE '%928%136%297%')
+            AND created_at > NOW() - INTERVAL '30 minutes'
+          ORDER BY created_at DESC
+          LIMIT 1;
+        `;
+      } else {
+        recentDuplicates = await sql`
+          SELECT id, notes FROM solar_leads
+          WHERE phone = ${enrichedLead.phone}
+            AND created_at > NOW() - INTERVAL '30 minutes'
+          ORDER BY created_at DESC
+          LIMIT 1;
+        `;
+      }
+
+      if (recentDuplicates.length > 0) {
+        const existingId = recentDuplicates[0].id;
+        const currentNotes = recentDuplicates[0].notes || "";
+        const updatedNotes =
+          enrichedLead.notes && !currentNotes.includes(enrichedLead.notes)
+            ? `${currentNotes} | Toque adicional: ${enrichedLead.notes}`
+            : currentNotes;
+
+        await sql`
+          UPDATE solar_leads
+          SET updated_at = NOW(),
+              notes = ${updatedNotes}
+          WHERE id = ${existingId};
+        `;
+
+        return {
+          success: true,
+          leadId: existingId,
+          dbSaved: true,
+          emailSent: false,
+          isDuplicate: true,
+          isLocalFallback: false,
+          warning: "Lead já registada recentemente (desduplicação ativa).",
+        };
+      }
 
       await sql`
         INSERT INTO solar_leads (
@@ -98,7 +149,7 @@ export async function saveLead(data: LeadData) {
     }
   }
 
-  // Fallback to local storage
+  // Fallback to local storage with Deduplication
   try {
     const dataDir = path.join(process.cwd(), "data");
     if (!fs.existsSync(dataDir)) {
@@ -113,6 +164,38 @@ export async function saveLead(data: LeadData) {
         existingLeads = [];
       }
     }
+
+    const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000;
+    const duplicateIndex = existingLeads.findIndex((l) => {
+      const leadTime = l.createdAt ? new Date(l.createdAt).getTime() : 0;
+      if (leadTime < thirtyMinutesAgo) return false;
+      if (isWhatsAppLead) {
+        return (
+          l.name.toLowerCase().includes("whatsapp") ||
+          l.phone.includes("928") ||
+          (l.notes ? l.notes.toLowerCase().includes("whatsapp") : false)
+        );
+      }
+      return l.phone === enrichedLead.phone;
+    });
+
+    if (duplicateIndex !== -1) {
+      existingLeads[duplicateIndex].updatedAt = createdAt;
+      if (enrichedLead.notes && !existingLeads[duplicateIndex].notes?.includes(enrichedLead.notes)) {
+        existingLeads[duplicateIndex].notes = `${existingLeads[duplicateIndex].notes || ""} | Toque adicional: ${enrichedLead.notes}`;
+      }
+      fs.writeFileSync(leadsFile, JSON.stringify(existingLeads, null, 2));
+      return {
+        success: true,
+        leadId: existingLeads[duplicateIndex].id || leadId,
+        dbSaved: true,
+        emailSent: false,
+        isDuplicate: true,
+        isLocalFallback: true,
+        warning: "Lead já registada recentemente (desduplicação ativa local).",
+      };
+    }
+
     existingLeads.unshift(enrichedLead);
     fs.writeFileSync(leadsFile, JSON.stringify(existingLeads, null, 2));
     if (!dbSaved) dbSaved = true;
