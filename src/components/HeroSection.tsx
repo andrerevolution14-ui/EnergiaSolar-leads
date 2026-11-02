@@ -45,11 +45,11 @@ export default function HeroSection() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-center">
           {/* Left Column: Copywriting, Purchase CTAs, and Guarantees */}
-          <div className="lg:col-span-7 flex flex-col items-start text-left">
+          <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
             {/* Urgency Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-800 text-xs sm:text-sm font-bold mb-3 sm:mb-4 shadow-sm">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-800 text-xs sm:text-sm font-bold mb-3 sm:mb-4 shadow-sm max-w-full text-center">
               <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
-              <span>Apoios do Estado 2026: Verbas Limitadas no Seu Concelho</span>
+              <span className="leading-tight">Apoios do Estado 2026: Verbas Limitadas no Seu Concelho</span>
             </div>
 
             {/* H1 Headline - Punchy, High Impact above the fold */}
@@ -79,7 +79,7 @@ export default function HeroSection() {
             </p>
 
             {/* Above-the-fold High-Intent Purchase CTAs */}
-            <div className="w-full sm:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-5 sm:mb-6">
+            <div className="w-full sm:w-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 mb-5 sm:mb-6">
               <a
                 href="#formulario"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-sm sm:text-base font-black text-white bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] shadow-xl shadow-blue-600/30 transition-all text-center group cursor-pointer"
@@ -98,7 +98,7 @@ export default function HeroSection() {
             </div>
 
             {/* Micro-trust & National Guarantees */}
-            <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm text-slate-700 font-bold">
+            <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm text-slate-700 font-bold justify-items-center lg:justify-items-start">
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                 <span>Vistoria e Projeto 100% Grátis</span>

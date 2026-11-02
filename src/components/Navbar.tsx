@@ -5,9 +5,9 @@ import { Sun, ArrowRight, ShieldCheck, Star } from "lucide-react";
 
 export default function Navbar() {
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 transition-all">
-      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-20">
+    <header className="relative z-40 bg-white border-b border-slate-200/80">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 sm:h-20 gap-2">
           {/* Logo & National Accreditation */}
           <a href="#" className="flex items-center gap-2 sm:gap-3 group shrink-0">
             <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-sky-500 flex items-center justify-center shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform">
@@ -48,10 +48,10 @@ export default function Navbar() {
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <a
               href="#formulario"
-              className="inline-flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-black text-white bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 px-3.5 sm:px-6 py-2.5 sm:py-3 rounded-xl shadow-md sm:shadow-lg shadow-blue-600/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="inline-flex items-center gap-1 sm:gap-2 text-[11px] sm:text-sm font-black text-white bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 px-2.5 sm:px-6 py-2 sm:py-3 rounded-xl shadow-sm sm:shadow-lg shadow-blue-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
             >
               <span>Ver se compensa na minha casa</span>
-              <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 hidden sm:inline" />
             </a>
           </div>
         </div>

@@ -13,7 +13,7 @@ import Footer from "@/components/Footer";
 
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col bg-white">
+    <main className="min-h-screen w-full max-w-[100vw] overflow-x-hidden flex flex-col bg-white">
       {/* 1. Main Navigation Bar */}
       <Navbar />
 
