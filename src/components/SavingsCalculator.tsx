@@ -75,7 +75,7 @@ export default function SavingsCalculator() {
   };
 
   return (
-    <section id="simulador" className="py-20 bg-white border-t border-slate-200/80">
+    <section id="simulador" className="py-20 bg-white border-t border-slate-200/80 w-full max-w-full overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-14">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100/70 text-blue-700 text-xs font-bold uppercase tracking-wider mb-3">
@@ -93,8 +93,8 @@ export default function SavingsCalculator() {
         {/* Calculator Main Grid */}
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
           {/* Left Column: Interactive Calculator Box */}
-          <div className="lg:col-span-8 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 rounded-3xl p-6 sm:p-10 shadow-2xl text-white border border-blue-800/40 flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="lg:col-span-8 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 rounded-3xl p-6 sm:p-10 shadow-2xl text-white border border-blue-800/40 flex flex-col justify-between relative overflow-hidden w-full max-w-full">
+            <div className="absolute top-0 right-0 w-72 h-72 sm:w-96 sm:h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
             <div>
               {/* Profile Switcher */}

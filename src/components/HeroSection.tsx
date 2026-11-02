@@ -8,9 +8,9 @@ export default function HeroSection() {
   const [activeSegment, setActiveSegment] = useState<"residencial" | "empresas">("residencial");
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-sky-50/50 via-white to-white pt-4 pb-10 sm:pt-6 sm:pb-12 lg:pt-8 lg:pb-16">
+    <section className="relative overflow-hidden bg-gradient-to-b from-sky-50/50 via-white to-white pt-4 pb-10 sm:pt-6 sm:pb-12 lg:pt-8 lg:pb-16 w-full max-w-full">
       {/* Background radial accent */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-blue-100/40 to-transparent blur-3xl -z-10 pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-[100vw] h-96 bg-gradient-to-b from-blue-100/40 to-transparent blur-3xl -z-10 pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Audience Segment Switcher Tabs - Optimized for mobile and desktop */}

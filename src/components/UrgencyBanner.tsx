@@ -5,10 +5,10 @@ import { ArrowRight, Clock, AlertTriangle, ShieldCheck, CheckCircle2 } from "luc
 
 export default function UrgencyBanner() {
   return (
-    <section className="bg-gradient-to-br from-blue-950 via-slate-900 to-blue-900 text-white py-16 px-4 sm:px-6 lg:px-8 border-y border-blue-800/50 relative overflow-hidden">
+    <section className="bg-gradient-to-br from-blue-950 via-slate-900 to-blue-900 text-white py-16 px-4 sm:px-6 lg:px-8 border-y border-blue-800/50 relative overflow-hidden w-full max-w-full">
       {/* Background glow effects */}
-      <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-sky-500/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-24 -left-24 w-72 h-72 sm:w-96 sm:h-96 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-24 -right-24 w-72 h-72 sm:w-96 sm:h-96 bg-sky-500/20 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-4xl mx-auto text-center relative z-10">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-bold mb-6">

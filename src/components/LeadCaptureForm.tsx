@@ -237,9 +237,9 @@ export default function LeadCaptureForm() {
   };
 
   return (
-    <section id="formulario" className="py-20 bg-slate-900 text-white relative overflow-hidden">
+    <section id="formulario" className="py-20 bg-slate-900 text-white relative overflow-hidden w-full max-w-full">
       {/* Background radial highlight */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[750px] h-[750px] bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[600px] h-[600px] bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header */}
