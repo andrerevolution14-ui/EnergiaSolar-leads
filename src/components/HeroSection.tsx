@@ -98,16 +98,16 @@ export default function HeroSection() {
             </div>
 
             {/* Micro-trust & National Guarantees */}
-            <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm text-slate-700 font-bold justify-items-center lg:justify-items-start">
-              <div className="flex items-center gap-1.5">
+            <div className="w-full flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-2.5 sm:gap-6 text-xs sm:text-sm text-slate-700 font-bold mx-auto lg:mx-0">
+              <div className="flex items-center gap-1.5 justify-center">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                 <span>Vistoria e Projeto 100% Grátis</span>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 justify-center">
                 <Award className="w-4 h-4 text-blue-600 shrink-0" />
                 <span>Instaladores Oficiais DGEG</span>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 justify-center">
                 <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
                 <span>25 Anos de Garantia Real</span>
               </div>

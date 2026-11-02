@@ -46,9 +46,9 @@ export default function StatsBar() {
             return (
               <div
                 key={idx}
-                className="flex flex-col items-center sm:items-start text-center sm:text-left p-2.5 sm:p-4 rounded-2xl transition-colors hover:bg-slate-50/80"
+                className="flex flex-col items-center sm:items-start text-center sm:text-left p-2.5 sm:p-4 rounded-2xl transition-colors hover:bg-slate-50/80 justify-center"
               >
-                <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
+                <div className="flex items-center justify-center sm:justify-start gap-2 sm:gap-3 mb-1 sm:mb-2 w-full">
                   <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl ${stat.bgColor} flex items-center justify-center shrink-0`}>
                     <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${stat.color}`} />
                   </div>
@@ -56,10 +56,10 @@ export default function StatsBar() {
                     {stat.value}
                   </span>
                 </div>
-                <div className="font-extrabold text-slate-900 text-xs sm:text-base leading-tight">
+                <div className="font-extrabold text-slate-900 text-xs sm:text-base leading-tight w-full">
                   {stat.label}
                 </div>
-                <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">
+                <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 w-full">
                   {stat.subtext}
                 </div>
               </div>
