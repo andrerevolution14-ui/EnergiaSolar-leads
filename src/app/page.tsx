@@ -10,7 +10,6 @@ import UrgencyBanner from "@/components/UrgencyBanner";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
 import FaqSection from "@/components/FaqSection";
 import Footer from "@/components/Footer";
-import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 
 export default function Home() {
   return (
@@ -47,9 +46,6 @@ export default function Home() {
 
       {/* 12. Complete Trust Footer */}
       <Footer />
-
-      {/* 13. Persistent Aesthetic Floating WhatsApp Widget with Meta & CRM Tracking */}
-      <WhatsAppFloatingButton />
     </main>
   );
 }

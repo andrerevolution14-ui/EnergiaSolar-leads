@@ -96,7 +96,7 @@ export default function FaqSection() {
             href="#formulario"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-sm shadow-md transition-all hover:scale-105 active:scale-95"
           >
-            <span>Quero Instalar Painéis na Minha Moradia Este Mês</span>
+            <span>Ver se compensa na minha casa</span>
             <ArrowRight className="w-4 h-4 shrink-0" />
           </a>
         </div>

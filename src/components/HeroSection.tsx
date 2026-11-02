@@ -84,7 +84,7 @@ export default function HeroSection() {
                 href="#formulario"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-sm sm:text-base font-black text-white bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] shadow-xl shadow-blue-600/30 transition-all text-center group cursor-pointer"
               >
-                <span>Quero Instalar os Meus Painéis Este Mês</span>
+                <span>Ver se compensa na minha casa</span>
                 <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform shrink-0" />
               </a>
 

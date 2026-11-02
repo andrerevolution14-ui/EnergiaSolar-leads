@@ -143,7 +143,7 @@ export default function FeaturesSection() {
             href="#formulario"
             className="w-full sm:w-auto shrink-0 px-8 py-4 rounded-xl bg-white text-slate-950 hover:bg-slate-100 font-black text-sm sm:text-base shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
           >
-            <span>Garantir a Minha Instalação em 30 Dias</span>
+            <span>Ver se compensa na minha casa</span>
             <ArrowRight className="w-4 h-4 text-blue-600 shrink-0" />
           </a>
         </div>

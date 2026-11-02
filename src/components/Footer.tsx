@@ -107,7 +107,7 @@ export default function Footer() {
                   href="#formulario"
                   className="inline-block w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-center transition-colors shadow-md"
                 >
-                  Pedir Estudo Gratuito em 60s
+                  Ver se compensa na minha casa
                 </a>
               </div>
             </div>

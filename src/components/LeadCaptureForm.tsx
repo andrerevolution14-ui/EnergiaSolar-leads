@@ -615,7 +615,7 @@ export default function LeadCaptureForm() {
                   type="submit"
                   className="w-full py-4 sm:py-5 px-6 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white font-black text-base sm:text-lg shadow-xl shadow-blue-600/35 flex items-center justify-center gap-3 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                 >
-                  <span>Quero Instalar os Meus Painéis e Começar a Poupar Este Mês</span>
+                  <span>Pedir a minha análise grátis</span>
                   <ArrowRight className="w-5 h-5 shrink-0" />
                 </button>
               </div>
@@ -684,7 +684,7 @@ export default function LeadCaptureForm() {
                   </>
                 ) : (
                   <>
-                    <span>Sim, o Número Está Correto — Avançar com a Instalação</span>
+                    <span>Confirmar e Pedir a minha análise grátis</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}

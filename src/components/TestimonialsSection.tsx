@@ -182,7 +182,7 @@ export default function TestimonialsSection() {
             href="#formulario"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-sm sm:text-base shadow-lg shadow-blue-600/25 transition-all hover:scale-105 active:scale-95"
           >
-            <span>Quero Começar a Poupar na Luz Este Mês &rarr;</span>
+            <span>Ver se compensa na minha casa &rarr;</span>
           </a>
         </div>
       </div>

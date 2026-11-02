@@ -50,8 +50,7 @@ export default function Navbar() {
               href="#formulario"
               className="inline-flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-black text-white bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 px-3.5 sm:px-6 py-2.5 sm:py-3 rounded-xl shadow-md sm:shadow-lg shadow-blue-600/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              <span className="hidden sm:inline">Instalar os Meus Painéis Este Mês</span>
-              <span className="sm:hidden">Instalar Este Mês</span>
+              <span>Ver se compensa na minha casa</span>
               <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
             </a>
           </div>

@@ -52,8 +52,19 @@ export async function saveLead(data: LeadData) {
 
   const isWhatsAppLead =
     enrichedLead.name.toLowerCase().includes("whatsapp") ||
-    enrichedLead.phone.includes("928") ||
-    (enrichedLead.notes ? enrichedLead.notes.toLowerCase().includes("whatsapp") : false);
+    enrichedLead.monthlyBill.toLowerCase().includes("whatsapp") ||
+    (enrichedLead.notes ? enrichedLead.notes.toLowerCase().includes("botão flutuante whatsapp") : false);
+
+  if (isWhatsAppLead) {
+    return {
+      success: true,
+      leadId,
+      dbSaved: false,
+      emailSent: false,
+      isLocalFallback: false,
+      warning: "Contacto via WhatsApp ignorado (não registado como lead no CRM).",
+    };
+  }
 
   // 1. Neon Database Storage with Deduplication
   const sql = getDb();
@@ -78,24 +89,13 @@ export async function saveLead(data: LeadData) {
       `;
 
       // Verificação de desduplicação (janela de 30 minutos)
-      let recentDuplicates: any[] = [];
-      if (isWhatsAppLead) {
-        recentDuplicates = await sql`
-          SELECT id, notes FROM solar_leads
-          WHERE (name ILIKE '%WhatsApp%' OR phone ILIKE '%928%136%297%')
-            AND created_at > NOW() - INTERVAL '30 minutes'
-          ORDER BY created_at DESC
-          LIMIT 1;
-        `;
-      } else {
-        recentDuplicates = await sql`
-          SELECT id, notes FROM solar_leads
-          WHERE phone = ${enrichedLead.phone}
-            AND created_at > NOW() - INTERVAL '30 minutes'
-          ORDER BY created_at DESC
-          LIMIT 1;
-        `;
-      }
+      const recentDuplicates: any[] = await sql`
+        SELECT id, notes FROM solar_leads
+        WHERE phone = ${enrichedLead.phone}
+          AND created_at > NOW() - INTERVAL '30 minutes'
+        ORDER BY created_at DESC
+        LIMIT 1;
+      `;
 
       if (recentDuplicates.length > 0) {
         const existingId = recentDuplicates[0].id;
@@ -169,13 +169,6 @@ export async function saveLead(data: LeadData) {
     const duplicateIndex = existingLeads.findIndex((l) => {
       const leadTime = l.createdAt ? new Date(l.createdAt).getTime() : 0;
       if (leadTime < thirtyMinutesAgo) return false;
-      if (isWhatsAppLead) {
-        return (
-          l.name.toLowerCase().includes("whatsapp") ||
-          l.phone.includes("928") ||
-          (l.notes ? l.notes.toLowerCase().includes("whatsapp") : false)
-        );
-      }
       return l.phone === enrichedLead.phone;
     });
 
@@ -293,6 +286,14 @@ export async function getAllLeads(statusFilter?: string, searchQuery?: string): 
   const sql = getDb();
   if (sql) {
     try {
+      // Remove eventuais registos antigos de contacto WhatsApp do CRM
+      await sql`
+        DELETE FROM solar_leads
+        WHERE name ILIKE '%Lead WhatsApp%'
+           OR monthly_bill ILIKE '%Contacto%WhatsApp%'
+           OR notes ILIKE '%Origem: Botão Flutuante WhatsApp%';
+      `;
+
       let query = "SELECT * FROM solar_leads";
       const conditions: string[] = [];
 

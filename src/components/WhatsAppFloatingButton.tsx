@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { X, Send, Sun, ShieldCheck, CheckCheck, Sparkles, MessageCircle } from "lucide-react";
-import { trackWhatsAppLead, generateEventId, getCookie, getFbcParam } from "@/lib/tracking";
 
 // Número de destino padrão ou via variável de ambiente
 const WHATSAPP_RAW_NUMBER =
@@ -88,78 +87,14 @@ export default function WhatsAppFloatingButton() {
     setSelectedMessage(option.message);
   };
 
-  const handleOpenChat = async () => {
+  const handleOpenChat = () => {
     if (isSending) return;
     setIsSending(true);
 
     const rawMessage = selectedMessage.trim() || DEFAULT_MESSAGE;
     const finalWhatsAppMessage = buildWhatsAppMessageWithRef(rawMessage);
-    const eventId = generateEventId();
-    const fbp = getCookie("_fbp");
-    const fbc = getFbcParam();
-    const pageUrl = typeof window !== "undefined" ? window.location.href : "";
 
-    // Prevenção de múltiplos envios na mesma sessão (janela de 30 minutos)
-    const WA_SESSION_KEY = "solaris_wa_lead_logged_at";
-    let shouldSendToCrm = true;
-
-    try {
-      const lastLogged = sessionStorage.getItem(WA_SESSION_KEY);
-      if (lastLogged) {
-        const timeElapsed = Date.now() - parseInt(lastLogged, 10);
-        if (timeElapsed < 30 * 60 * 1000) {
-          shouldSendToCrm = false;
-        }
-      }
-    } catch {
-      // sessionStorage indisponível
-    }
-
-    if (shouldSendToCrm) {
-      try {
-        sessionStorage.setItem(WA_SESSION_KEY, Date.now().toString());
-      } catch {
-        // ignore
-      }
-
-      // 1. Disparo imediato do Meta Pixel no Navegador (Deduplicação com CAPI via eventId)
-      trackWhatsAppLead({
-        eventId,
-        value: 6000,
-        contentName: `Lead WhatsApp • Solaris (${selectedOptionId || "geral"})`,
-      });
-
-      // 2. Registo no CRM & Disparo Server-side da Meta Conversions API (CAPI)
-      try {
-        fetch("/api/leads", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          keepalive: true,
-          body: JSON.stringify({
-            source: "whatsapp",
-            origin: "whatsapp",
-            name: "Lead WhatsApp (Interessado Solar)",
-            phone: "+351 928 136 297",
-            propertyType: "residencial",
-            monthlyBill: "Contacto via WhatsApp",
-            plannedBudget: "3.500€ a 6.000€",
-            timeline: "Imediato",
-            whatsappMessage: finalWhatsAppMessage,
-            eventId,
-            highestValue: 6000,
-            fbp,
-            fbc,
-            pageUrl,
-          }),
-        }).catch((err) => {
-          console.warn("[WhatsApp Lead API non-blocking error]", err);
-        });
-      } catch (e) {
-        // Ignorar para nunca bloquear a abertura do WhatsApp
-      }
-    }
-
-    // 3. Montagem do link seguro e direto do WhatsApp (com identificação discreta do André)
+    // Montagem do link seguro e direto do WhatsApp (sem registo como lead no CRM e sem disparo de conversão no Facebook)
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(
       finalWhatsAppMessage
     )}`;
