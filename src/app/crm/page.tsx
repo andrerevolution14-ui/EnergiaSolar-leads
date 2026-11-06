@@ -38,6 +38,12 @@ import {
   Layers,
   Database,
   Check,
+  Users,
+  UserPlus,
+  UserCheck,
+  Send,
+  Mail,
+  Filter,
 } from "lucide-react";
 
 interface Lead {
@@ -51,6 +57,9 @@ interface Lead {
   location?: string;
   status: "nova" | "contactada" | "fechada";
   notes?: string;
+  assignedTo?: string;
+  assignedName?: string;
+  assignedAt?: string;
   estimatedSavingsAnnual?: number;
   closedValue?: number;
   commissionValue?: number;
@@ -67,8 +76,24 @@ interface Stats {
   totalCommission?: number;
 }
 
+interface CurrentUser {
+  id: string;
+  username: string;
+  name: string;
+  role: "admin" | "vendedor";
+}
+
+interface VendorUser {
+  id: string;
+  username: string;
+  name: string;
+  email: string;
+  role: "admin" | "vendedor";
+  createdAt: string;
+}
+
 export default function CrmPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [usernameInput, setUsernameInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -87,8 +112,25 @@ export default function CrmPage() {
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [propertyFilter, setPropertyFilter] = useState<"todos" | "residencial" | "comercial">("todos");
+  const [selectedVendorFilter, setSelectedVendorFilter] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>("");
+
+  // Vendors Management (for Admin)
+  const [vendorsList, setVendorsList] = useState<VendorUser[]>([]);
+  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
+  const [newVendorUsername, setNewVendorUsername] = useState("");
+  const [newVendorPassword, setNewVendorPassword] = useState("");
+  const [newVendorName, setNewVendorName] = useState("");
+  const [newVendorEmail, setNewVendorEmail] = useState("");
+  const [vendorCreateError, setVendorCreateError] = useState<string | null>(null);
+  const [vendorCreateSuccess, setVendorCreateSuccess] = useState<string | null>(null);
+  const [isCreatingVendor, setIsCreatingVendor] = useState(false);
+
+  // Lead Assign Modal (for Admin)
+  const [assigningLead, setAssigningLead] = useState<Lead | null>(null);
+  const [targetVendorId, setTargetVendorId] = useState<string>("");
+  const [isAssigning, setIsAssigning] = useState(false);
 
   // Active notes state
   const [activeLeadNotes, setActiveLeadNotes] = useState<{ [id: string]: string }>({});
@@ -105,7 +147,7 @@ export default function CrmPage() {
   const [closingCommissionInput, setClosingCommissionInput] = useState("");
   const [isSubmittingClose, setIsSubmittingClose] = useState(false);
 
-  // Check initial session & restore saved theme (Day mode is default)
+  // Check initial session & restore saved theme
   useEffect(() => {
     checkSession();
     if (localStorage.getItem("crm_theme") === "dark") setIsDarkMode(true);
@@ -119,13 +161,29 @@ export default function CrmPage() {
     try {
       const res = await fetch("/api/crm/auth");
       if (res.ok) {
-        setIsAuthenticated(true);
-        loadLeads("");
+        const data = await res.json();
+        setCurrentUser(data.user);
+        loadLeads("", selectedVendorFilter);
+        if (data.user?.role === "admin") {
+          loadVendors();
+        }
       } else {
-        setIsAuthenticated(false);
+        setCurrentUser(null);
       }
     } catch {
-      setIsAuthenticated(false);
+      setCurrentUser(null);
+    }
+  };
+
+  const loadVendors = async () => {
+    try {
+      const res = await fetch("/api/crm/users");
+      if (res.ok) {
+        const data = await res.json();
+        setVendorsList(data.users || []);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar vendedores:", err);
     }
   };
 
@@ -146,8 +204,12 @@ export default function CrmPage() {
         throw new Error(data.error || "Credenciais inválidas");
       }
 
-      setIsAuthenticated(true);
-      loadLeads("");
+      setCurrentUser(data.user);
+      setSelectedVendorFilter("all");
+      loadLeads("", "all");
+      if (data.user?.role === "admin") {
+        loadVendors();
+      }
     } catch (err: any) {
       setLoginError(err.message || "Erro no início de sessão");
     } finally {
@@ -157,22 +219,24 @@ export default function CrmPage() {
 
   const handleLogout = async () => {
     await fetch("/api/crm/auth", { method: "DELETE" });
-    setIsAuthenticated(false);
+    setCurrentUser(null);
     setUsernameInput("");
     setPasswordInput("");
   };
 
-  const loadLeads = async (search = searchQuery) => {
+  const loadLeads = async (search = searchQuery, vendor = selectedVendorFilter) => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
       if (search.trim()) params.append("search", search.trim());
+      if (vendor && vendor !== "all") params.append("vendorId", vendor);
 
       const res = await fetch(`/api/crm/leads?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setLeads(data.leads || []);
         if (data.stats) setStats(data.stats);
+        if (data.currentUser) setCurrentUser(data.currentUser);
 
         const notesMap: { [id: string]: string } = {};
         (data.leads || []).forEach((lead: Lead) => {
@@ -188,13 +252,112 @@ export default function CrmPage() {
     }
   };
 
+  const handleVendorFilterChange = (vendorId: string) => {
+    setSelectedVendorFilter(vendorId);
+    loadLeads(searchQuery, vendorId);
+  };
+
+  const handleCreateVendor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreatingVendor(true);
+    setVendorCreateError(null);
+    setVendorCreateSuccess(null);
+
+    try {
+      const res = await fetch("/api/crm/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: newVendorUsername,
+          password: newVendorPassword,
+          name: newVendorName,
+          email: newVendorEmail,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Erro ao criar conta de vendedor");
+      }
+
+      setVendorCreateSuccess(`Conta criada com sucesso para ${newVendorName}!`);
+      setNewVendorUsername("");
+      setNewVendorPassword("");
+      setNewVendorName("");
+      setNewVendorEmail("");
+      loadVendors();
+      setTimeout(() => {
+        setIsVendorModalOpen(false);
+        setVendorCreateSuccess(null);
+      }, 1500);
+    } catch (err: any) {
+      setVendorCreateError(err.message || "Falha ao criar utilizador.");
+    } finally {
+      setIsCreatingVendor(false);
+    }
+  };
+
+  const handleDeleteVendor = async (userId: string, vendorName: string) => {
+    if (!confirm(`Tem a certeza que deseja eliminar o acesso do vendedor "${vendorName}"?`)) return;
+
+    try {
+      const res = await fetch(`/api/crm/users?id=${userId}`, { method: "DELETE" });
+      if (res.ok) {
+        if (selectedVendorFilter === userId) {
+          setSelectedVendorFilter("all");
+          loadLeads(searchQuery, "all");
+        }
+        loadVendors();
+      }
+    } catch (err) {
+      console.error("Erro ao eliminar vendedor:", err);
+    }
+  };
+
+  const handleOpenAssignLead = (lead: Lead) => {
+    setAssigningLead(lead);
+    setTargetVendorId(lead.assignedTo || "");
+  };
+
+  const handleConfirmAssignLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assigningLead) return;
+
+    setIsAssigning(true);
+    const chosenVendor = vendorsList.find((v) => v.id === targetVendorId);
+    const assignedName = chosenVendor ? chosenVendor.name : targetVendorId === "admin_tecnergy" ? "Administrador (Tecnergy)" : null;
+
+    try {
+      const res = await fetch("/api/crm/leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: assigningLead.id,
+          status: assigningLead.status,
+          assignedTo: targetVendorId ? targetVendorId : null,
+          assignedName: assignedName,
+          notifyEmail: true,
+        }),
+      });
+
+      if (res.ok) {
+        setAssigningLead(null);
+        loadLeads();
+      }
+    } catch (err) {
+      console.error("Erro ao atribuir lead:", err);
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
   const handleStatusChange = async (
     id: string,
     newStatus: "nova" | "contactada" | "fechada",
     closedVal?: number,
     commVal?: number
   ) => {
-    // If moving to "fechada" without values specified, open modal to input them!
+    // If moving to "fechada" without values specified, open modal to input them
     if (newStatus === "fechada" && closedVal === undefined) {
       const target = leads.find((l) => l.id === id);
       if (target) {
@@ -252,7 +415,6 @@ export default function CrmPage() {
     setClosingLead(null);
   };
 
-  // Open modal directly to adjust closed deal value & commission
   const handleOpenEditClosedDeal = (lead: Lead) => {
     setClosingLead(lead);
     setClosingValueInput(lead.closedValue ? lead.closedValue.toString() : "5000");
@@ -293,7 +455,6 @@ export default function CrmPage() {
     const lead = leads.find((l) => l.id === id);
     if (!lead) return;
 
-    // Avoid redundant save if nothing changed
     if (lead.notes === noteText && !savedNotesIndicator[id]) {
       return;
     }
@@ -310,12 +471,10 @@ export default function CrmPage() {
         }),
       });
 
-      // Update local state without full reload
       setLeads((prev) =>
         prev.map((l) => (l.id === id ? { ...l, notes: noteText } : l))
       );
 
-      // Show temporary green checkmark indicator
       setSavedNotesIndicator((prev) => ({ ...prev, [id]: true }));
       setTimeout(() => {
         setSavedNotesIndicator((prev) => ({ ...prev, [id]: false }));
@@ -341,7 +500,6 @@ export default function CrmPage() {
     }
   };
 
-  // Auto-calculate commission (10% standard) when typing closed value
   const handleClosedValueChange = (val: string) => {
     setClosingValueInput(val);
     const parsed = parseFloat(val);
@@ -366,6 +524,7 @@ export default function CrmPage() {
       "Orcamento",
       "Prazo",
       "Localidade",
+      "Vendedor Atribuido",
       "Estado",
       "Valor Fechado (€)",
       "Comissao (€)",
@@ -382,6 +541,7 @@ export default function CrmPage() {
       `"${l.plannedBudget || ""}"`,
       `"${l.timeline || ""}"`,
       `"${(l.location || "").replace(/"/g, '""')}"`,
+      `"${(l.assignedName || "Não atribuído").replace(/"/g, '""')}"`,
       l.status,
       l.closedValue || 0,
       l.commissionValue || 0,
@@ -398,7 +558,7 @@ export default function CrmPage() {
     link.setAttribute("href", encodedUri);
     link.setAttribute(
       "download",
-      `solaris_leads_${new Date().toISOString().slice(0, 10)}.csv`
+      `solaris_leads_${currentUser?.username || "crm"}_${new Date().toISOString().slice(0, 10)}.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -406,7 +566,7 @@ export default function CrmPage() {
   };
 
   // Loading Session
-  if (isAuthenticated === null) {
+  if (currentUser === undefined) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-800">
         <div className="flex items-center gap-3">
@@ -417,8 +577,8 @@ export default function CrmPage() {
     );
   }
 
-  // Login Screen (Day Mode as Principal)
-  if (!isAuthenticated) {
+  // Login Screen
+  if (!currentUser) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-100 via-sky-50 to-blue-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white border border-slate-200/90 rounded-3xl p-8 sm:p-10 shadow-2xl">
@@ -455,7 +615,7 @@ export default function CrmPage() {
                 <input
                   type="text"
                   required
-                  placeholder="Ex: tecnergy"
+                  placeholder="tecnergy ou o seu username"
                   value={usernameInput}
                   onChange={(e) => setUsernameInput(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl py-3.5 pl-11 pr-4 text-slate-900 text-sm focus:border-blue-600 focus:bg-white focus:outline-none transition-colors"
@@ -491,7 +651,7 @@ export default function CrmPage() {
           </form>
 
           <div className="mt-6 pt-6 border-t border-slate-100 text-center text-xs text-slate-400">
-            Acesso reservado à equipa comercial e gestores de projeto.
+            Acesso reservado ao administrador e vendedores credenciados.
           </div>
         </div>
       </div>
@@ -500,17 +660,16 @@ export default function CrmPage() {
 
   // Filter leads
   const filteredLeads = leads.filter((lead) => {
-    // Property type filter
     if (propertyFilter !== "todos" && lead.propertyType !== propertyFilter) {
       return false;
     }
-    // Search query filter
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
       lead.name.toLowerCase().includes(q) ||
       lead.phone.toLowerCase().includes(q) ||
-      (lead.location && lead.location.toLowerCase().includes(q))
+      (lead.location && lead.location.toLowerCase().includes(q)) ||
+      (lead.assignedName && lead.assignedName.toLowerCase().includes(q))
     );
   });
 
@@ -579,7 +738,7 @@ export default function CrmPage() {
     },
   ];
 
-  // Theme variable classes for perfect Light / Dark rendering
+  // Theme variable classes
   const theme = {
     bg: isDarkMode ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900",
     headerBg: isDarkMode ? "bg-slate-900/95 border-slate-800" : "bg-white border-slate-200/90 shadow-xs",
@@ -608,19 +767,29 @@ export default function CrmPage() {
   const conversionRate = stats.total > 0 ? Math.round((stats.fechadas / stats.total) * 100) : 0;
   const averageTicket = stats.fechadas > 0 ? Math.round(totalVolume / stats.fechadas) : 0;
 
+  const isAdmin = currentUser?.role === "admin";
+  const activeVendorName =
+    selectedVendorFilter === "all"
+      ? "Todas as Leads"
+      : selectedVendorFilter === "unassigned"
+      ? "Leads Sem Atribuição"
+      : vendorsList.find((v) => v.id === selectedVendorFilter)?.name || "Vendedor";
+
   return (
     <div className={`${isDarkMode ? "dark" : ""} min-h-screen ${theme.bg} flex flex-col font-sans transition-colors duration-150`}>
-      {/* Institutional Top Bar: Regulatory & Security Compliance (Non-Noise) */}
+      {/* Institutional Top Bar */}
       <div className={`border-b px-4 sm:px-8 py-1.5 text-[11px] font-semibold flex flex-wrap items-center justify-between gap-2 ${theme.subHeaderBg}`}>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Plataforma Comercial Certificada • DGEG / DL n.º 15/2022</span>
+            <span>Plataforma Comercial • Tecnergy Solaris</span>
           </div>
           <span className="hidden md:inline text-slate-300 dark:text-slate-700">•</span>
-          <div className="hidden md:flex items-center gap-1 text-slate-500 dark:text-slate-400">
-            <Database className="w-3 h-3 text-emerald-500" />
-            <span>Neon PostgreSQL (Frankfurt)</span>
+          <div className="hidden md:flex items-center gap-1.5">
+            <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+            <span>
+              Sessão: <strong>{currentUser.name}</strong> ({isAdmin ? "Administrador" : "Vendedor"})
+            </span>
           </div>
         </div>
 
@@ -632,7 +801,7 @@ export default function CrmPage() {
           )}
           <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Canal Seguro TLS 1.3
+            Sincronização em tempo real
           </span>
         </div>
       </div>
@@ -648,18 +817,34 @@ export default function CrmPage() {
               <span className={`font-black text-lg sm:text-xl tracking-tight ${theme.textHeading}`}>
                 Solaris <span className="text-blue-600">CRM</span>
               </span>
-              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-black bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                PRO v2.6
+              <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black border ${
+                isAdmin
+                  ? "bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+                  : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+              }`}>
+                {isAdmin ? "ADMIN DONO" : "VENDEDOR"}
               </span>
             </div>
             <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-              Tecnergy Soluções Energéticas • Pipeline de Vendas Solares
+              {isAdmin ? "Gestão Global & Atribuição de Vendedores" : `Painel de Vendas • ${currentUser.name}`}
             </div>
           </div>
         </div>
 
-        {/* Header Right Action Tools: Export, Day/Night Mode, Refresh, Logout */}
+        {/* Header Right Action Tools */}
         <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Admin Manage Vendors Button */}
+          {isAdmin && (
+            <button
+              onClick={() => setIsVendorModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors cursor-pointer"
+              title="Criar nova conta de vendedor ou gerir equipa"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Gerir Vendedores ({vendorsList.length})</span>
+            </button>
+          )}
+
           {/* CSV Export Button */}
           <button
             onClick={handleExportCSV}
@@ -691,7 +876,7 @@ export default function CrmPage() {
           {/* Refresh Button */}
           <button
             onClick={() => loadLeads()}
-            title="Atualizar dados da base de dados Neon"
+            title="Atualizar dados"
             className={`p-2 rounded-xl border transition-colors cursor-pointer ${
               isDarkMode
                 ? "bg-slate-800 border-slate-700 text-slate-300 hover:text-white"
@@ -714,9 +899,63 @@ export default function CrmPage() {
 
       {/* Main Executive CRM Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        {/* Admin Vendor Filter Pill Bar */}
+        {isAdmin && (
+          <div className={`p-3 rounded-2xl border ${theme.subBox} flex flex-wrap items-center justify-between gap-3`}>
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300">
+              <Users className="w-4 h-4 text-blue-600" />
+              <span>Ver CRM de:</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleVendorFilterChange("all")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  selectedVendorFilter === "all"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700"
+                }`}
+              >
+                Todas as Leads
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleVendorFilterChange("unassigned")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  selectedVendorFilter === "unassigned"
+                    ? "bg-amber-600 text-white shadow-sm"
+                    : "bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-300 hover:bg-amber-50 border border-amber-200 dark:border-amber-800"
+                }`}
+              >
+                ⚠️ Sem Vendedor
+              </button>
+
+              {vendorsList.map((vendor) => {
+                const isSelected = selectedVendorFilter === vendor.id;
+                return (
+                  <button
+                    key={vendor.id}
+                    type="button"
+                    onClick={() => handleVendorFilterChange(vendor.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isSelected
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700"
+                    }`}
+                  >
+                    <span>{vendor.name}</span>
+                    <span className="text-[10px] opacity-75">(@{vendor.username})</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Institutional KPI Summary Strip */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
-          {/* 1. Total Leads */}
           <div className={`p-4 sm:p-5 rounded-2xl border ${theme.kpiCard}`}>
             <div className="flex items-center justify-between mb-1.5">
               <span className={`text-[11px] font-black uppercase tracking-wider ${theme.kpiLabel}`}>
@@ -728,11 +967,10 @@ export default function CrmPage() {
               {stats.total}
             </div>
             <div className={`text-[11px] font-medium mt-0.5 ${theme.kpiSub}`}>
-              Total de candidaturas
+              {isAdmin ? activeVendorName : "As suas leads atribuídas"}
             </div>
           </div>
 
-          {/* 2. Novas */}
           <div className={`p-4 sm:p-5 rounded-2xl border ${theme.kpiCard}`}>
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[11px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
@@ -748,7 +986,6 @@ export default function CrmPage() {
             </div>
           </div>
 
-          {/* 3. Contactadas */}
           <div className={`p-4 sm:p-5 rounded-2xl border ${theme.kpiCard}`}>
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[11px] font-black uppercase tracking-wider text-sky-700 dark:text-sky-400">
@@ -760,11 +997,10 @@ export default function CrmPage() {
               {stats.contactadas}
             </div>
             <div className={`text-[11px] font-medium mt-0.5 ${theme.kpiSub}`}>
-              Qualificação / Vistoria técnica
+              Qualificação / Proposta
             </div>
           </div>
 
-          {/* 4. Fechadas / Volume Total */}
           <div className={`p-4 sm:p-5 rounded-2xl border ${theme.kpiCard}`}>
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[11px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
@@ -780,7 +1016,6 @@ export default function CrmPage() {
             </div>
           </div>
 
-          {/* 5. Comissões Geradas */}
           <div className={`col-span-2 md:col-span-1 p-4 sm:p-5 rounded-2xl border ${theme.kpiCard}`}>
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-400">
@@ -797,56 +1032,49 @@ export default function CrmPage() {
           </div>
         </div>
 
-        {/* Institutional Secondary Control Strip: Segment Filters & Search */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5">
-          {/* Segment Filter Tabs */}
-          <div className="flex items-center gap-1.5 bg-slate-200/80 dark:bg-slate-900 p-1 rounded-xl border border-slate-300/70 dark:border-slate-800 text-xs font-bold w-fit">
+        {/* Search & Property Segment Filter Strip */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 p-1 bg-slate-200/60 dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-800">
             <button
               onClick={() => setPropertyFilter("todos")}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                 propertyFilter === "todos"
-                  ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  ? "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
               }`}
             >
-              Todas as Leads ({leads.length})
+              Todos os Imóveis
             </button>
             <button
               onClick={() => setPropertyFilter("residencial")}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                 propertyFilter === "residencial"
-                  ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  ? "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
               }`}
             >
-              <Home className="w-3 h-3" />
-              <span>Residencial</span>
+              Residencial
             </button>
             <button
               onClick={() => setPropertyFilter("comercial")}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                 propertyFilter === "comercial"
-                  ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  ? "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
               }`}
             >
-              <Building2 className="w-3 h-3" />
-              <span>Comercial</span>
+              Comercial
             </button>
           </div>
 
-          {/* Search Box */}
-          <div className="relative min-w-[280px] sm:w-80">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <div className="relative flex-1 sm:max-w-md">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="Pesquisar cliente, telefone, concelho..."
+              placeholder="Pesquisar por nome, telemóvel, localidade ou vendedor..."
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                loadLeads(e.target.value);
-              }}
-              className={`w-full ${theme.inputBg} rounded-xl py-2 pl-10 pr-8 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-600 transition-colors shadow-xs`}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`w-full ${theme.inputBg} rounded-xl py-2.5 pl-10 pr-9 text-xs font-semibold focus:outline-none transition-colors shadow-xs`}
             />
             {searchQuery && (
               <button
@@ -862,15 +1090,13 @@ export default function CrmPage() {
           </div>
         </div>
 
-        {/* Drag and Drop Instructional Guide */}
+        {/* Kanban Guide */}
         <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400">
           <span className="inline-block w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400" />
-          <span>Arraste os cartões entre as colunas ou clique nos botões de mudança rápida para avançar no pipeline.</span>
+          <span>Arraste os cartões entre as colunas ou use os botões rápidos. As alterações são sincronizadas instantaneamente.</span>
         </div>
 
-        {/* ========================================================================= */}
-        {/* KANBAN DRAG-AND-DROP COLUMNS                                             */}
-        {/* ========================================================================= */}
+        {/* KANBAN DRAG-AND-DROP COLUMNS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           {columns.map((col) => {
             const colLeads = filteredLeads.filter((l) => (l.status || "nova") === col.status);
@@ -888,7 +1114,6 @@ export default function CrmPage() {
                     : `${theme.colBg} border-transparent`
                 }`}
               >
-                {/* Column Header with Stage Stats */}
                 <div
                   className={`p-3.5 rounded-2xl border ${col.colorClasses.headerBorder} ${col.colorClasses.headerBg} flex items-center justify-between mb-4 shadow-xs`}
                 >
@@ -912,7 +1137,6 @@ export default function CrmPage() {
                   </span>
                 </div>
 
-                {/* Leads Cards Container in Column */}
                 <div className="flex-1 space-y-3.5">
                   {colLeads.length === 0 ? (
                     <div className="h-44 border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center p-4 text-slate-400 dark:text-slate-600">
@@ -953,12 +1177,6 @@ export default function CrmPage() {
                                     <Home className="w-3 h-3 text-blue-600 shrink-0" />
                                   )}
                                   <span className="capitalize">{lead.propertyType}</span>
-                                  {lead.notes?.toLowerCase().includes("whatsapp") && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-bold text-[9px] border border-emerald-300 dark:border-emerald-800">
-                                      <MessageCircle className="w-2.5 h-2.5" />
-                                      WhatsApp
-                                    </span>
-                                  )}
                                   {lead.location && (
                                     <>
                                       <span>•</span>
@@ -979,6 +1197,33 @@ export default function CrmPage() {
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
+                          </div>
+
+                          {/* Vendor Assignment Badge & Button */}
+                          <div className="mb-2 flex items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-bold text-slate-500">Comercial:</span>
+                              {lead.assignedName ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 font-extrabold text-[11px] border border-blue-200 dark:border-blue-800">
+                                  <UserCheck className="w-3 h-3 text-blue-600" />
+                                  <span>{lead.assignedName}</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold text-[10px] border border-amber-300 dark:border-amber-800">
+                                  Não atribuído
+                                </span>
+                              )}
+                            </div>
+
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAssignLead(lead)}
+                                className="text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 underline cursor-pointer"
+                              >
+                                {lead.assignedTo ? "Mudar Vendedor" : "Atribuir"}
+                              </button>
+                            )}
                           </div>
 
                           {/* Action Buttons: Direct Call & WhatsApp */}
@@ -1031,7 +1276,7 @@ export default function CrmPage() {
                             </div>
                           </div>
 
-                          {/* If closed, show Deal Value & Commission Badges with Adjustment Option */}
+                          {/* If closed, show Deal Value & Commission Badges */}
                           {lead.status === "fechada" && (
                             <div className="mb-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800/80 text-xs">
                               <div className="flex items-center justify-between mb-2">
@@ -1062,7 +1307,7 @@ export default function CrmPage() {
                             </div>
                           )}
 
-                          {/* Commercial Notes with Direct Input, Save & Auto-save on Blur */}
+                          {/* Commercial Notes with Direct Input & Auto-save on Blur */}
                           <div className="pt-1">
                             <div className="flex items-center justify-between mb-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-400">
                               <span className="flex items-center gap-1">
@@ -1102,7 +1347,7 @@ export default function CrmPage() {
                             </div>
                           </div>
 
-                          {/* Fast Move Buttons (Alternative to Dragging) */}
+                          {/* Fast Move Buttons */}
                           <div className="mt-3 pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 font-bold">
                             <span>Mover etapa:</span>
                             <div className="flex items-center gap-1">
@@ -1144,83 +1389,318 @@ export default function CrmPage() {
       </main>
 
       {/* ========================================================================= */}
+      {/* MODAL: GERIR / CRIAR VENDEDORES (EXCLUSIVO ADMIN DONO)                    */}
+      {/* ========================================================================= */}
+      {isVendorModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setIsVendorModalOpen(false)}
+              className="absolute right-5 top-5 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center justify-center transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-blue-600">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-950 dark:text-white">
+                  Equipa de Vendedores
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Crie novos acessos para a sua equipa comercial
+                </p>
+              </div>
+            </div>
+
+            {vendorCreateError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                <span>{vendorCreateError}</span>
+              </div>
+            )}
+
+            {vendorCreateSuccess && (
+              <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span>{vendorCreateSuccess}</span>
+              </div>
+            )}
+
+            {/* Form Criar Vendedor */}
+            <form onSubmit={handleCreateVendor} className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 mb-6">
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                Adicionar Novo Vendedor
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    Nome Completo *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: Pedro Martins"
+                    value={newVendorName}
+                    onChange={(e) => setNewVendorName(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl py-2 px-3 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    Email de Aviso *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="vendedor@empresa.com"
+                    value={newVendorEmail}
+                    onChange={(e) => setNewVendorEmail(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl py-2 px-3 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    Nome de Utilizador (Login) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="ex: pedro"
+                    value={newVendorUsername}
+                    onChange={(e) => setNewVendorUsername(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl py-2 px-3 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    Palavra-passe Inicial *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="ex: solar2026"
+                    value={newVendorPassword}
+                    onChange={(e) => setNewVendorPassword(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl py-2 px-3 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isCreatingVendor}
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 mt-2"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>{isCreatingVendor ? "A criar conta..." : "Criar Sessão de Vendedor"}</span>
+              </button>
+            </form>
+
+            {/* Lista de Vendedores Atuais */}
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-3">
+                Vendedores Registados ({vendorsList.length})
+              </h4>
+
+              {vendorsList.length === 0 ? (
+                <p className="text-xs text-slate-500 italic py-2">Nenhum vendedor criado ainda.</p>
+              ) : (
+                <div className="space-y-2">
+                  {vendorsList.map((v) => (
+                    <div
+                      key={v.id}
+                      className="p-3 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div>
+                        <div className="font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span>{v.name}</span>
+                          <span className="text-[10px] text-slate-400">(@{v.username})</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                          <Mail className="w-3 h-3 text-slate-400" />
+                          <span>{v.email}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteVendor(v.id, v.name)}
+                        className="text-rose-600 hover:text-rose-700 dark:text-rose-400 p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors"
+                        title="Remover vendedor"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: ATRIBUIR LEAD A VENDEDOR (ADMIN DONO)                              */}
+      {/* ========================================================================= */}
+      {assigningLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative">
+            <button
+              onClick={() => setAssigningLead(null)}
+              className="absolute right-5 top-5 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center justify-center transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-blue-600">
+                <Send className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-950 dark:text-white">
+                  Atribuir Lead
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {assigningLead.name} ({assigningLead.phone})
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleConfirmAssignLead} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+                  Escolher Vendedor Responsável:
+                </label>
+                <select
+                  value={targetVendorId}
+                  onChange={(e) => setTargetVendorId(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl py-3 px-3 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                >
+                  <option value="">Nenhum (Sem Vendedor)</option>
+                  <option value="admin_tecnergy">Administrador (Tecnergy)</option>
+                  {vendorsList.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} ({v.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-[11px] text-blue-900 dark:text-blue-200">
+                📧 O vendedor receberá automaticamente um <strong>aviso por email</strong> com todos os dados da lead e a mesma aparecerá imediatamente no CRM pessoal dele.
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAssigningLead(null)}
+                  className="py-3 px-4 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAssigning}
+                  className="py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isAssigning ? "A guardar..." : "Confirmar Atribuição"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* MODAL: REGISTAR / EDITAR VENDA FECHADA E COMISSÃO                         */}
       {/* ========================================================================= */}
       {closingLead && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative text-left">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative">
             <button
               onClick={() => setClosingLead(null)}
-              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg cursor-pointer"
+              className="absolute right-5 top-5 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center justify-center transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
 
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4">
-              <Award className="w-6 h-6" />
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-600">
+                <Award className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-950 dark:text-white">
+                  Registar Fecho de Venda
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {closingLead.name} ({closingLead.phone})
+                </p>
+              </div>
             </div>
-
-            <h3 className="text-xl font-black text-slate-950 dark:text-white mb-1">
-              Registar Venda Fechada
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mb-6">
-              Cliente: <strong className="text-slate-900 dark:text-white">{closingLead.name}</strong> • {closingLead.phone}
-            </p>
 
             <form onSubmit={handleConfirmCloseDeal} className="space-y-4">
               <div>
-                <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">
-                  Valor Total do Negócio Fechado (€) <span className="text-rose-500">*</span>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+                  Valor Total do Contrato Adjudicado (€)
                 </label>
                 <div className="relative">
                   <Euro className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="number"
-                    step="0.01"
+                    step="10"
                     required
                     placeholder="Ex: 5500"
                     value={closingValueInput}
                     onChange={(e) => handleClosedValueChange(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl py-3 pl-11 pr-4 text-slate-950 dark:text-white font-mono font-bold text-base focus:border-emerald-600 focus:outline-none transition-colors"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl py-3 pl-11 pr-4 text-slate-900 dark:text-white font-mono text-sm font-bold focus:outline-none focus:border-emerald-600"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">
-                  Valor da Comissão (€)
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+                  Comissão Calculada (€)
                 </label>
                 <div className="relative">
-                  <Briefcase className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <DollarSign className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="number"
-                    step="0.01"
+                    step="5"
+                    required
                     placeholder="Ex: 550"
                     value={closingCommissionInput}
                     onChange={(e) => setClosingCommissionInput(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl py-3 pl-11 pr-4 text-slate-950 dark:text-white font-mono font-bold text-base focus:border-emerald-600 focus:outline-none transition-colors"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl py-3 pl-11 pr-4 text-slate-900 dark:text-white font-mono text-sm font-bold focus:outline-none focus:border-emerald-600"
                   />
                 </div>
-                <span className="text-[11px] text-slate-500 mt-1 block font-semibold">
-                  (Calculado automaticamente a 10% ou ajustável livremente)
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Sugestão padrão automática: 10% do valor fechado.
                 </span>
               </div>
 
-              <div className="pt-2 flex items-center gap-3">
-                <button
-                  type="submit"
-                  disabled={isSubmittingClose}
-                  className="flex-1 py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{isSubmittingClose ? "A gravar..." : "Confirmar Venda"}</span>
-                </button>
+              <div className="grid grid-cols-2 gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setClosingLead(null)}
-                  className="py-3.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm transition-colors cursor-pointer"
+                  className="py-3 px-4 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingClose}
+                  className="py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmittingClose ? "A gravar..." : "Guardar Contrato"}
                 </button>
               </div>
             </form>

@@ -16,6 +16,9 @@ export interface LeadData {
   location?: string;
   status?: LeadStatus;
   notes?: string;
+  assignedTo?: string; // ID do utilizador (ex: usr_xxx ou admin_tecnergy)
+  assignedName?: string; // Nome legível do vendedor (ex: Pedro Martins)
+  assignedAt?: string;
   estimatedSavingsAnnual?: number;
   closedValue?: number;
   commissionValue?: number;
@@ -82,10 +85,22 @@ export async function saveLead(data: LeadData) {
           location VARCHAR(100),
           status VARCHAR(30) DEFAULT 'nova',
           notes TEXT DEFAULT '',
+          assigned_to VARCHAR(64),
+          assigned_name VARCHAR(255),
+          assigned_at TIMESTAMPTZ,
           estimated_savings_annual NUMERIC,
           created_at TIMESTAMPTZ DEFAULT NOW(),
           updated_at TIMESTAMPTZ DEFAULT NOW()
         );
+      `;
+      // Adicionar colunas se tabela já existir
+      await sql`
+        ALTER TABLE solar_leads
+        ADD COLUMN IF NOT EXISTS assigned_to VARCHAR(64),
+        ADD COLUMN IF NOT EXISTS assigned_name VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS closed_value NUMERIC,
+        ADD COLUMN IF NOT EXISTS commission_value NUMERIC;
       `;
 
       // Verificação de desduplicação (janela de 30 minutos)
@@ -125,7 +140,7 @@ export async function saveLead(data: LeadData) {
 
       await sql`
         INSERT INTO solar_leads (
-          id, name, phone, property_type, monthly_bill, planned_budget, timeline, location, status, notes, estimated_savings_annual, created_at, updated_at
+          id, name, phone, property_type, monthly_bill, planned_budget, timeline, location, status, notes, assigned_to, assigned_name, assigned_at, estimated_savings_annual, created_at, updated_at
         ) VALUES (
           ${leadId},
           ${enrichedLead.name},
@@ -137,6 +152,9 @@ export async function saveLead(data: LeadData) {
           ${enrichedLead.location || ""},
           ${status},
           ${enrichedLead.notes || ""},
+          ${enrichedLead.assignedTo || null},
+          ${enrichedLead.assignedName || null},
+          ${enrichedLead.assignedAt || null},
           ${enrichedLead.estimatedSavingsAnnual || null},
           ${createdAt},
           ${createdAt}
@@ -282,7 +300,11 @@ export async function saveLead(data: LeadData) {
   };
 }
 
-export async function getAllLeads(statusFilter?: string, searchQuery?: string): Promise<LeadData[]> {
+export async function getAllLeads(
+  statusFilter?: string,
+  searchQuery?: string,
+  assignedToFilter?: string
+): Promise<LeadData[]> {
   const sql = getDb();
   if (sql) {
     try {
@@ -304,6 +326,13 @@ export async function getAllLeads(statusFilter?: string, searchQuery?: string): 
         const clean = searchQuery.trim().replace(/'/g, "''");
         conditions.push(`(name ILIKE '%${clean}%' OR phone ILIKE '%${clean}%' OR location ILIKE '%${clean}%')`);
       }
+      if (assignedToFilter) {
+        if (assignedToFilter === "unassigned") {
+          conditions.push(`(assigned_to IS NULL OR assigned_to = '')`);
+        } else {
+          conditions.push(`assigned_to = '${assignedToFilter.replace(/'/g, "''")}'`);
+        }
+      }
 
       if (conditions.length > 0) {
         query += " WHERE " + conditions.join(" AND ");
@@ -322,6 +351,9 @@ export async function getAllLeads(statusFilter?: string, searchQuery?: string): 
         location: r.location,
         status: (r.status as LeadStatus) || "nova",
         notes: r.notes || "",
+        assignedTo: r.assigned_to || undefined,
+        assignedName: r.assigned_name || undefined,
+        assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : undefined,
         estimatedSavingsAnnual: r.estimated_savings_annual ? Number(r.estimated_savings_annual) : undefined,
         closedValue: r.closed_value !== null && r.closed_value !== undefined ? Number(r.closed_value) : undefined,
         commissionValue: r.commission_value !== null && r.commission_value !== undefined ? Number(r.commission_value) : undefined,
@@ -351,6 +383,13 @@ export async function getAllLeads(statusFilter?: string, searchQuery?: string): 
             (l.location && l.location.toLowerCase().includes(q))
         );
       }
+      if (assignedToFilter) {
+        if (assignedToFilter === "unassigned") {
+          leads = leads.filter((l) => !l.assignedTo);
+        } else {
+          leads = leads.filter((l) => l.assignedTo === assignedToFilter);
+        }
+      }
       return leads;
     }
   } catch (fsErr) {
@@ -365,7 +404,9 @@ export async function updateLeadStatus(
   status: LeadStatus,
   notes?: string,
   closedValue?: number,
-  commissionValue?: number
+  commissionValue?: number,
+  assignedTo?: string | null,
+  assignedName?: string | null
 ): Promise<boolean> {
   const sql = getDb();
   const now = new Date().toISOString();
@@ -382,6 +423,17 @@ export async function updateLeadStatus(
       }
       if (commissionValue !== undefined) {
         setParts.push(`commission_value = ${isNaN(Number(commissionValue)) ? "NULL" : Number(commissionValue)}`);
+      }
+      if (assignedTo !== undefined) {
+        if (assignedTo === null || assignedTo === "") {
+          setParts.push(`assigned_to = NULL`, `assigned_name = NULL`, `assigned_at = NULL`);
+        } else {
+          setParts.push(
+            `assigned_to = '${assignedTo.replace(/'/g, "''")}'`,
+            `assigned_name = '${(assignedName || "").replace(/'/g, "''")}'`,
+            `assigned_at = NOW()`
+          );
+        }
       }
 
       await sql.query(`UPDATE solar_leads SET ${setParts.join(", ")} WHERE id = '${id.replace(/'/g, "''")}'`);
@@ -403,6 +455,11 @@ export async function updateLeadStatus(
         if (notes !== undefined) leads[idx].notes = notes;
         if (closedValue !== undefined) leads[idx].closedValue = Number(closedValue);
         if (commissionValue !== undefined) leads[idx].commissionValue = Number(commissionValue);
+        if (assignedTo !== undefined) {
+          leads[idx].assignedTo = assignedTo || undefined;
+          leads[idx].assignedName = assignedName || undefined;
+          leads[idx].assignedAt = assignedTo ? now : undefined;
+        }
         leads[idx].updatedAt = now;
         fs.writeFileSync(leadsFile, JSON.stringify(leads, null, 2));
         updated = true;
@@ -413,6 +470,95 @@ export async function updateLeadStatus(
   }
 
   return updated;
+}
+
+/**
+ * Notifica o vendedor por email quando lhe é atribuída uma lead pelo Administrador
+ */
+export async function sendLeadAssignmentNotification(params: {
+  lead: LeadData;
+  vendorName: string;
+  vendorEmail: string;
+}) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL || "Solaris Leads <onboarding@resend.dev>";
+
+  if (!resendApiKey || resendApiKey.includes("re_your_api_key") || !params.vendorEmail) {
+    console.warn("[sendLeadAssignmentNotification] Resend API Key ou email do vendedor em falta.");
+    return false;
+  }
+
+  try {
+    const resend = new Resend(resendApiKey);
+    const emailHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="background: linear-gradient(135deg, #0284c7 0%, #1e40af 100%); padding: 20px; border-radius: 8px; color: white; text-align: center; margin-bottom: 24px;">
+          <h1 style="margin: 0; font-size: 20px; font-weight: 700;">☀️ Nova Lead Atribuída — Solaris CRM</h1>
+          <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.9;">Olá <strong>${params.vendorName}</strong>, foi-te atribuída uma nova oportunidade para fecho comercial.</p>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 12px 0; color: #64748b; font-weight: 600; width: 40%;">Cliente:</td>
+            <td style="padding: 12px 0; color: #0f172a; font-weight: 700; font-size: 16px;">${params.lead.name}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 12px 0; color: #64748b; font-weight: 600;">Telefone:</td>
+            <td style="padding: 12px 0; color: #0284c7; font-weight: 700; font-size: 18px;">
+              <a href="tel:${params.lead.phone}" style="color: #0284c7; text-decoration: none;">${params.lead.phone}</a>
+            </td>
+          </tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 12px 0; color: #64748b; font-weight: 600;">Tipo de Imóvel:</td>
+            <td style="padding: 12px 0; color: #0f172a; text-transform: capitalize;">${params.lead.propertyType}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 12px 0; color: #64748b; font-weight: 600;">Fatura Mensal:</td>
+            <td style="padding: 12px 0; color: #0f172a; font-weight: 600;">${params.lead.monthlyBill}</td>
+          </tr>
+          ${params.lead.plannedBudget ? `
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 12px 0; color: #64748b; font-weight: 600;">Orçamento Previsto:</td>
+            <td style="padding: 12px 0; color: #0284c7; font-weight: 700;">${params.lead.plannedBudget}</td>
+          </tr>` : ""}
+          ${params.lead.timeline ? `
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 12px 0; color: #64748b; font-weight: 600;">Prazo:</td>
+            <td style="padding: 12px 0; color: #0f172a; font-weight: 600;">${params.lead.timeline}</td>
+          </tr>` : ""}
+          ${params.lead.location ? `
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 12px 0; color: #64748b; font-weight: 600;">Localidade:</td>
+            <td style="padding: 12px 0; color: #0f172a;">${params.lead.location}</td>
+          </tr>` : ""}
+          ${params.lead.notes ? `
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 12px 0; color: #64748b; font-weight: 600;">Notas Iniciais:</td>
+            <td style="padding: 12px 0; color: #334155; font-size: 13px;">${params.lead.notes}</td>
+          </tr>` : ""}
+        </table>
+
+        <div style="background-color: #f8fafc; border-radius: 8px; padding: 16px; text-align: center;">
+          <p style="margin: 0 0 12px; font-size: 13px; color: #64748b;">Aceda ao seu painel CRM para registar o contacto e atualizar o estado:</p>
+          <a href="https://solaris-energia.pt/crm" style="display: inline-block; background-color: #0284c7; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">
+            Abrir no CRM Solaris
+          </a>
+        </div>
+      </div>
+    `;
+
+    await resend.emails.send({
+      from: fromEmail,
+      to: params.vendorEmail,
+      subject: `⚡ Nova Lead Atribuída (${params.lead.propertyType}): ${params.lead.name} — ${params.lead.phone}`,
+      html: emailHtml,
+    });
+
+    return true;
+  } catch (err: any) {
+    console.error("[sendLeadAssignmentNotification Error]", err);
+    return false;
+  }
 }
 
 export async function deleteLead(id: string): Promise<boolean> {

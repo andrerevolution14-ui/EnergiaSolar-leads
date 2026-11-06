@@ -1,15 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAllLeads, updateLeadStatus, deleteLead, LeadStatus } from "@/lib/leads";
+import {
+  getAllLeads,
+  updateLeadStatus,
+  deleteLead,
+  LeadStatus,
+  sendLeadAssignmentNotification,
+} from "@/lib/leads";
+import { verifySessionToken, getAllCrmUsers } from "@/lib/crm-users";
 
 const COOKIE_NAME = "solaris_crm_session";
 
-function checkAuth(request: NextRequest): boolean {
+function getCrmSession(request: NextRequest) {
   const session = request.cookies.get(COOKIE_NAME)?.value;
-  return session === "auth_valid_tecnergy_2005";
+  return verifySessionToken(session);
 }
 
 export async function GET(request: NextRequest) {
-  if (!checkAuth(request)) {
+  const session = getCrmSession(request);
+  if (!session) {
     return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
   }
 
@@ -17,19 +25,30 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || undefined;
     const search = searchParams.get("search") || undefined;
+    const requestedVendor = searchParams.get("vendorId") || undefined;
 
-    const leads = await getAllLeads(status, search);
+    // Se for vendedor, só pode ver as suas próprias leads
+    // Se for admin, pode filtrar por vendorId específico, por "unassigned" ou ver todas
+    let assignedFilter: string | undefined = undefined;
+    if (session.role === "vendedor") {
+      assignedFilter = session.userId;
+    } else if (session.role === "admin" && requestedVendor) {
+      assignedFilter = requestedVendor; // pode ser "all", "unassigned", ou o id de um vendedor
+      if (assignedFilter === "all") assignedFilter = undefined;
+    }
 
-    // Calculate pipeline statistics
-    const all = await getAllLeads();
-    const fechadasList = all.filter((l) => l.status === "fechada");
+    const leads = await getAllLeads(status, search, assignedFilter);
+
+    // Calcular estatísticas da perspetiva de quem está a aceder
+    const allScoped = await getAllLeads(undefined, undefined, assignedFilter);
+    const fechadasList = allScoped.filter((l) => l.status === "fechada");
     const totalVolume = fechadasList.reduce((acc, l) => acc + (Number(l.closedValue) || 0), 0);
     const totalCommission = fechadasList.reduce((acc, l) => acc + (Number(l.commissionValue) || 0), 0);
 
     const stats = {
-      total: all.length,
-      novas: all.filter((l) => (l.status || "nova") === "nova").length,
-      contactadas: all.filter((l) => l.status === "contactada").length,
+      total: allScoped.length,
+      novas: allScoped.filter((l) => (l.status || "nova") === "nova").length,
+      contactadas: allScoped.filter((l) => l.status === "contactada").length,
       fechadas: fechadasList.length,
       totalVolume,
       totalCommission,
@@ -37,6 +56,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      currentUser: session,
       stats,
       leads,
     });
@@ -47,35 +67,92 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!checkAuth(request)) {
+  const session = getCrmSession(request);
+  if (!session) {
     return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
   }
 
   try {
-    const { id, status, notes, closedValue, commissionValue } = await request.json();
+    const body = await request.json();
+    const {
+      id,
+      status,
+      notes,
+      closedValue,
+      commissionValue,
+      assignedTo,
+      assignedName,
+      notifyEmail,
+    } = body;
 
-    if (!id || !["nova", "contactada", "fechada"].includes(status)) {
+    if (!id) {
       return NextResponse.json(
-        { error: "Dados inválidos para atualização de estado." },
+        { error: "ID de lead obrigatório." },
         { status: 400 }
       );
     }
 
+    // Se for vendedor, verificar se a lead pertence ao vendedor
+    if (session.role === "vendedor") {
+      const all = await getAllLeads(undefined, undefined, session.userId);
+      const ownsLead = all.some((l) => l.id === id);
+      if (!ownsLead) {
+        return NextResponse.json(
+          { error: "Não tem permissão para editar esta lead." },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Apenas Admin pode atribuir/re-atribuir leads a outros vendedores
+    let targetAssignedTo = undefined;
+    let targetAssignedName = undefined;
+
+    if (session.role === "admin" && assignedTo !== undefined) {
+      targetAssignedTo = assignedTo; // pode ser null ou string
+      targetAssignedName = assignedName;
+    }
+
     const updated = await updateLeadStatus(
       id,
-      status as LeadStatus,
+      (status as LeadStatus) || "nova",
       notes,
       closedValue !== undefined ? Number(closedValue) : undefined,
-      commissionValue !== undefined ? Number(commissionValue) : undefined
+      commissionValue !== undefined ? Number(commissionValue) : undefined,
+      targetAssignedTo,
+      targetAssignedName
     );
 
     if (!updated) {
       return NextResponse.json({ error: "Lead não encontrada." }, { status: 404 });
     }
 
+    // Notificar vendedor por email caso tenha sido atribuído pelo Admin
+    if (session.role === "admin" && targetAssignedTo && notifyEmail !== false) {
+      try {
+        const users = await getAllCrmUsers();
+        const vendor = users.find((u) => u.id === targetAssignedTo);
+        if (vendor && vendor.email) {
+          const leadList = await getAllLeads();
+          const targetLead = leadList.find((l) => l.id === id);
+          if (targetLead) {
+            sendLeadAssignmentNotification({
+              lead: targetLead,
+              vendorName: vendor.name,
+              vendorEmail: vendor.email,
+            }).catch((emailErr) => {
+              console.warn("[sendLeadAssignmentNotification non-blocking error]", emailErr);
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("[Email Notification Exception]", err);
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Lead atualizada para ${status}.`,
+      message: `Lead atualizada com sucesso.`,
     });
   } catch (err: any) {
     console.error("[CRM Leads PATCH Error]", err);
@@ -84,7 +161,8 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!checkAuth(request)) {
+  const session = getCrmSession(request);
+  if (!session) {
     return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
   }
 
@@ -96,9 +174,22 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "ID de lead obrigatório." }, { status: 400 });
     }
 
+    // Se for vendedor, verificar se tem posse da lead
+    if (session.role === "vendedor") {
+      const all = await getAllLeads(undefined, undefined, session.userId);
+      const ownsLead = all.some((l) => l.id === id);
+      if (!ownsLead) {
+        return NextResponse.json(
+          { error: "Não tem permissão para eliminar esta lead." },
+          { status: 403 }
+        );
+      }
+    }
+
     const deleted = await deleteLead(id);
     return NextResponse.json({ success: deleted });
   } catch (err: any) {
+    console.error("[CRM Leads DELETE Error]", err);
     return NextResponse.json({ error: "Erro ao eliminar lead." }, { status: 500 });
   }
 }

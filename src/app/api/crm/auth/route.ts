@@ -1,49 +1,93 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  findCrmUserByUsername,
+  hashPassword,
+  createSessionToken,
+  verifySessionToken,
+} from "@/lib/crm-users";
 
-const VALID_USER = process.env.CRM_USER || "tecnergy";
-const VALID_PASS = process.env.CRM_PASS || "2005";
 const COOKIE_NAME = "solaris_crm_session";
 
 export async function POST(request: NextRequest) {
   try {
     const { username, password } = await request.json();
 
-    if (username === VALID_USER && password === VALID_PASS) {
-      const response = NextResponse.json({
-        success: true,
-        user: { username: VALID_USER, role: "admin" },
-      });
-
-      // Set cookie (valid for 7 days)
-      response.cookies.set(COOKIE_NAME, "auth_valid_tecnergy_2005", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7,
-        path: "/",
-      });
-
-      return response;
+    if (!username || !password) {
+      return NextResponse.json(
+        { error: "Por favor indique o utilizador e a palavra-passe." },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json(
-      { error: "Credenciais inválidas. Verifique o utilizador e a palavra-passe." },
-      { status: 401 }
-    );
-  } catch (error) {
+    const user = await findCrmUserByUsername(username);
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Credenciais inválidas. Verifique o utilizador e a palavra-passe." },
+        { status: 401 }
+      );
+    }
+
+    const hashedInput = hashPassword(password);
+    if (hashedInput !== user.passwordHash) {
+      return NextResponse.json(
+        { error: "Credenciais inválidas. Verifique o utilizador e a palavra-passe." },
+        { status: 401 }
+      );
+    }
+
+    // Criar token assinado de sessão (válido para admin e vendedor)
+    const token = createSessionToken({
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      role: user.role,
+    });
+
+    const response = NextResponse.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+
+    // Guardar cookie HTTP-only por 7 dias
+    response.cookies.set(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+
+    return response;
+  } catch (error: any) {
+    console.error("[CRM Auth POST Error]", error);
     return NextResponse.json({ error: "Erro interno de autenticação." }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
-  const session = request.cookies.get(COOKIE_NAME)?.value;
-  const isAuthenticated = session === "auth_valid_tecnergy_2005";
+  const sessionCookie = request.cookies.get(COOKIE_NAME)?.value;
+  const session = verifySessionToken(sessionCookie);
 
-  if (!isAuthenticated) {
+  if (!session) {
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
 
-  return NextResponse.json({ authenticated: true, user: { username: VALID_USER, role: "admin" } });
+  return NextResponse.json({
+    authenticated: true,
+    user: {
+      id: session.userId,
+      username: session.username,
+      name: session.name,
+      role: session.role,
+    },
+  });
 }
 
 export async function DELETE() {
