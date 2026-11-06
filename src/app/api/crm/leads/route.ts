@@ -128,7 +128,9 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Notificar vendedor por email caso tenha sido atribuído pelo Admin
+    let emailStatus = { attempted: false, sent: false, reason: "" };
     if (session.role === "admin" && targetAssignedTo && notifyEmail !== false) {
+      emailStatus.attempted = true;
       try {
         const users = await getAllCrmUsers();
         const vendor = users.find((u) => u.id === targetAssignedTo);
@@ -136,23 +138,29 @@ export async function PATCH(request: NextRequest) {
           const leadList = await getAllLeads();
           const targetLead = leadList.find((l) => l.id === id);
           if (targetLead) {
-            sendLeadAssignmentNotification({
+            const sent = await sendLeadAssignmentNotification({
               lead: targetLead,
               vendorName: vendor.name,
               vendorEmail: vendor.email,
-            }).catch((emailErr) => {
-              console.warn("[sendLeadAssignmentNotification non-blocking error]", emailErr);
             });
+            emailStatus.sent = sent;
+            if (!sent) {
+              emailStatus.reason = "RESEND_API_KEY não configurada no servidor ou erro de entrega no Resend.";
+            }
           }
+        } else {
+          emailStatus.reason = "Vendedor não possui email configurado.";
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn("[Email Notification Exception]", err);
+        emailStatus.reason = err?.message || "Exceção no envio de email.";
       }
     }
 
     return NextResponse.json({
       success: true,
       message: `Lead atualizada com sucesso.`,
+      emailStatus,
     });
   } catch (err: any) {
     console.error("[CRM Leads PATCH Error]", err);

@@ -547,16 +547,22 @@ export async function sendLeadAssignmentNotification(params: {
       </div>
     `;
 
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from: fromEmail,
       to: params.vendorEmail,
       subject: `⚡ Nova Lead Atribuída (${params.lead.propertyType}): ${params.lead.name} — ${params.lead.phone}`,
       html: emailHtml,
     });
 
+    if (result.error) {
+      console.error("[sendLeadAssignmentNotification Resend API Error]", result.error);
+      return false;
+    }
+
+    console.log("[sendLeadAssignmentNotification Success]", result.data);
     return true;
   } catch (err: any) {
-    console.error("[sendLeadAssignmentNotification Error]", err);
+    console.error("[sendLeadAssignmentNotification Exception]", err);
     return false;
   }
 }
