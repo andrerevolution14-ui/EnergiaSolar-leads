@@ -325,7 +325,11 @@ export default function CrmPage() {
 
     setIsAssigning(true);
     const chosenVendor = vendorsList.find((v) => v.id === targetVendorId);
-    const assignedName = chosenVendor ? chosenVendor.name : targetVendorId === "admin_tecnergy" ? "Administrador (Tecnergy)" : null;
+    const assignedName = chosenVendor
+      ? chosenVendor.name
+      : targetVendorId === "admin_tecnergy"
+      ? "Administrador (Tecnergy)"
+      : null;
 
     try {
       const res = await fetch("/api/crm/leads", {
@@ -340,12 +344,16 @@ export default function CrmPage() {
         }),
       });
 
-      if (res.ok) {
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Erro ao atribuir vendedor à lead.");
+      } else {
         setAssigningLead(null);
-        loadLeads();
+        await loadLeads();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao atribuir lead:", err);
+      alert("Falha de rede ao tentar atribuir lead: " + (err?.message || "erro"));
     } finally {
       setIsAssigning(false);
     }
@@ -1218,8 +1226,12 @@ export default function CrmPage() {
                             {isAdmin && (
                               <button
                                 type="button"
-                                onClick={() => handleOpenAssignLead(lead)}
-                                className="text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 underline cursor-pointer"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleOpenAssignLead(lead);
+                                }}
+                                className="text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 underline cursor-pointer p-1"
                               >
                                 {lead.assignedTo ? "Mudar Vendedor" : "Atribuir"}
                               </button>
