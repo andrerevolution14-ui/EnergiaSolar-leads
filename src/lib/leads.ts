@@ -217,7 +217,7 @@ export async function saveLead(data: LeadData) {
   // 2. Resend Email Notification
   const resendApiKey = process.env.RESEND_API_KEY;
   const toEmail = process.env.NOTIFICATION_EMAIL || "leads@solaris-energia.pt";
-  const fromEmail = process.env.RESEND_FROM_EMAIL || "Solaris Leads <onboarding@resend.dev>";
+  const fromEmail = process.env.RESEND_FROM_EMAIL || "Tecnergy Leads <onboarding@resend.dev>";
 
   if (resendApiKey && !resendApiKey.includes("re_your_api_key")) {
     try {
@@ -481,7 +481,7 @@ export async function sendLeadAssignmentNotification(params: {
   vendorEmail: string;
 }) {
   const resendApiKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.RESEND_FROM_EMAIL || "Solaris Leads <onboarding@resend.dev>";
+  const fromEmail = process.env.RESEND_FROM_EMAIL || "Tecnergy Leads <onboarding@resend.dev>";
 
   if (!resendApiKey || resendApiKey.includes("re_your_api_key") || !params.vendorEmail) {
     console.warn("[sendLeadAssignmentNotification] Resend API Key ou email do vendedor em falta.");
@@ -493,7 +493,7 @@ export async function sendLeadAssignmentNotification(params: {
     const emailHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
         <div style="background: linear-gradient(135deg, #0284c7 0%, #1e40af 100%); padding: 20px; border-radius: 8px; color: white; text-align: center; margin-bottom: 24px;">
-          <h1 style="margin: 0; font-size: 20px; font-weight: 700;">☀️ Nova Lead Atribuída — Solaris CRM</h1>
+          <h1 style="margin: 0; font-size: 20px; font-weight: 700;">☀️ Nova Lead Atribuída — Tecnergy CRM</h1>
           <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.9;">Olá <strong>${params.vendorName}</strong>, foi-te atribuída uma nova oportunidade para fecho comercial.</p>
         </div>
 
@@ -541,7 +541,7 @@ export async function sendLeadAssignmentNotification(params: {
         <div style="background-color: #f8fafc; border-radius: 8px; padding: 16px; text-align: center;">
           <p style="margin: 0 0 12px; font-size: 13px; color: #64748b;">Aceda ao seu painel CRM para registar o contacto e atualizar o estado:</p>
           <a href="https://solaris-energia.pt/crm" style="display: inline-block; background-color: #0284c7; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">
-            Abrir no CRM Solaris
+            Abrir no CRM Tecnergy
           </a>
         </div>
       </div>

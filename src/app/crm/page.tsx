@@ -566,7 +566,7 @@ export default function CrmPage() {
     link.setAttribute("href", encodedUri);
     link.setAttribute(
       "download",
-      `solaris_leads_${currentUser?.username || "crm"}_${new Date().toISOString().slice(0, 10)}.csv`
+      `tecnergy_leads_${currentUser?.username || "crm"}_${new Date().toISOString().slice(0, 10)}.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -579,7 +579,7 @@ export default function CrmPage() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <span className="font-semibold text-sm">A carregar CRM Solaris...</span>
+          <span className="font-semibold text-sm">A carregar CRM Tecnergy...</span>
         </div>
       </div>
     );
@@ -595,7 +595,7 @@ export default function CrmPage() {
               <Sun className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">
-              Solaris <span className="text-blue-600">CRM</span>
+              Tecnergy <span className="text-blue-600">CRM</span>
             </h1>
             <p className="text-xs text-slate-500 mt-1 font-semibold">
               Tecnergy Soluções Energéticas • Gestão de Vendas
@@ -790,7 +790,7 @@ export default function CrmPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Plataforma Comercial • Tecnergy Solaris</span>
+            <span>Plataforma Comercial • Tecnergy</span>
           </div>
           <span className="hidden md:inline text-slate-300 dark:text-slate-700">•</span>
           <div className="hidden md:flex items-center gap-1.5">
@@ -823,7 +823,7 @@ export default function CrmPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className={`font-black text-lg sm:text-xl tracking-tight ${theme.textHeading}`}>
-                Solaris <span className="text-blue-600">CRM</span>
+                Tecnergy <span className="text-blue-600">CRM</span>
               </span>
               <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black border ${
                 isAdmin
@@ -1248,7 +1248,7 @@ export default function CrmPage() {
                               <span className="truncate">{lead.phone}</span>
                             </a>
                             <a
-                              href={`https://wa.me/${formattedPhone}?text=${encodeURIComponent(`Olá ${lead.name}, contactamos da Tecnergy Solaris relativamente à sua simulação de energia solar.`)}`}
+                              href={`https://wa.me/${formattedPhone}?text=${encodeURIComponent(`Olá ${lead.name}, contactamos da Tecnergy relativamente à sua simulação de energia solar.`)}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="py-2 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all"
