@@ -350,6 +350,14 @@ export default function CrmPage() {
       } else {
         setAssigningLead(null);
         await loadLeads();
+
+        if (data.emailStatus?.attempted) {
+          if (data.emailStatus?.sent) {
+            alert(`✅ Lead atribuída com sucesso a ${assignedName || "vendedor"}!\n\n📧 Email de notificação enviado com sucesso!\n(Nota: Verifica a pasta de Entrada e também o Spam/Lixo Eletrónico no Gmail).`);
+          } else {
+            alert(`⚠️ Lead atribuída com sucesso no CRM, mas o envio do email falhou:\n${data.emailStatus?.reason || "Erro ao comunicar com o serviço Resend."}\n\nNota: No plano de testes Resend (onboarding@resend.dev), o email só pode ser enviado para a conta registada no Resend.`);
+          }
+        }
       }
     } catch (err: any) {
       console.error("Erro ao atribuir lead:", err);

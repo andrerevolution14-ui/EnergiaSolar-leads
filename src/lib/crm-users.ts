@@ -172,7 +172,7 @@ export async function findCrmUserByUsername(username: string): Promise<CrmUser |
       username: ADMIN_USER,
       passwordHash: hashPassword(ADMIN_PASS),
       name: "Administrador (Tecnergy)",
-      email: process.env.NOTIFICATION_EMAIL || "admin@solaris-energia.pt",
+      email: process.env.NOTIFICATION_EMAIL || "andrerevolution14@gmail.com",
       role: "admin",
       createdAt: new Date("2026-01-01").toISOString(),
       updatedAt: new Date().toISOString(),

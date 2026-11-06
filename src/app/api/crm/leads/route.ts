@@ -133,20 +133,39 @@ export async function PATCH(request: NextRequest) {
       emailStatus.attempted = true;
       try {
         const users = await getAllCrmUsers();
-        const vendor = users.find((u) => u.id === targetAssignedTo);
+        let vendor = users.find((u) => u.id === targetAssignedTo);
+
+        // Fallback caso a lead seja atribuída ao Administrador
+        if (!vendor && targetAssignedTo === "admin_tecnergy") {
+          vendor = {
+            id: "admin_tecnergy",
+            username: "tecnergy",
+            passwordHash: "",
+            name: "Administrador (Tecnergy)",
+            email: process.env.NOTIFICATION_EMAIL || "andrerevolution14@gmail.com",
+            role: "admin",
+            createdAt: "",
+            updatedAt: "",
+          };
+        }
+
         if (vendor && vendor.email) {
           const leadList = await getAllLeads();
           const targetLead = leadList.find((l) => l.id === id);
           if (targetLead) {
-            const sent = await sendLeadAssignmentNotification({
+            const sendResult = await sendLeadAssignmentNotification({
               lead: targetLead,
               vendorName: vendor.name,
               vendorEmail: vendor.email,
             });
-            emailStatus.sent = sent;
-            if (!sent) {
-              emailStatus.reason = "RESEND_API_KEY não configurada no servidor ou erro de entrega no Resend.";
+            emailStatus.sent = sendResult.success;
+            if (!sendResult.success) {
+              emailStatus.reason = sendResult.error || "RESEND_API_KEY não configurada no servidor ou erro de entrega no Resend.";
+            } else {
+              emailStatus.reason = `Email enviado com sucesso para ${vendor.email}`;
             }
+          } else {
+            emailStatus.reason = "Lead não encontrada para envio de email.";
           }
         } else {
           emailStatus.reason = "Vendedor não possui email configurado.";
